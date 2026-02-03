@@ -13,6 +13,8 @@ class ServerConfig{
         std::string _host;
         std::vector<std::string> _server_names;
         std::map<int, std::string> _errorPages;
+        std::size_t _clientMaxBodySize;
+        std::vector<LocationConfig> _locations;
 
     public:
         ServerConfig(void);
@@ -20,6 +22,27 @@ class ServerConfig{
         ServerConfig &operator=(const ServerConfig &other);
         ~ServerConfig(void);
 
+        //getters
+        const std::vector<int> &getPorts(void) const;
+        const std::string &getHost(void) const;
+        const std::vector <std::string> &getServerNames(void) const;
+        const std::map<int, std::string> &getErrorPages(void) const;
+        std::size_t getClientMaxBodySize(void) const;
+        const std::vector<LocationConfig> &getLocations(void) const;
+
+        //setters
+        void setPorts(const std::vector<int> &ports);
+        void setHost(const std::string &host);
+        void setServerNames(const std::vector<std::string> &names);
+        void setErrorPages(const std::map<int, std::string> &pages);
+        void setClientMaxBodySize(std::size_t maxBodySize);
+        void setLocations(const std::vector <LocationConfig> &locations);
+
+        //adders
+        void addPort(int port);
+        void addServerName(const std::string &name);
+        void addErrorPage(int code,const std::string &path);
+        void addLocation(const LocationConfig &location);
 };
 
 #endif

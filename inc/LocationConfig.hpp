@@ -26,12 +26,12 @@ class LocationConfig {
         const std::string &getPath(void) const;
         const std::string &getRoot(void) const;
         const std::vector<std::string> &getAllowedMethods(void) const;
-        const bool getAutoindex(void);
+        bool getAutoindex(void) const;
         const std::string &getIndexFile(void) const;
         const std::string &getCgiExtension(void) const;
         const std::string &getCgiPass(void) const;
         const std::string &getUploadPath(void) const;
-        const int getRedirectCode(void);
+        int getRedirectCode(void) const;
         const std::string &getRedirectUrl(void) const;
 
         void setPath(const std::string &path);
