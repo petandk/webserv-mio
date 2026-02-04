@@ -44,6 +44,8 @@ class LocationConfig {
         void setUploadPath(const std::string &path);
         void setRedirectionCode(int code);
         void setRedirectUrl(const std::string &path);
+
+        void addAllowedMethod(std::string &method);
 };
 
 #endif

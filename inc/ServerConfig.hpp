@@ -11,7 +11,7 @@ class ServerConfig{
     private:
         std::vector<int> _ports;
         std::string _host;
-        std::vector<std::string> _server_names;
+        std::vector<std::string> _serverNames;
         std::map<int, std::string> _errorPages;
         std::size_t _clientMaxBodySize;
         std::vector<LocationConfig> _locations;
