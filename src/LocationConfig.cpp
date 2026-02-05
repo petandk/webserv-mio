@@ -1,17 +1,15 @@
 #include "../inc/LocationConfig.hpp"
 
-//_allowedMethod is empty by default so no default init needed because is a vector
+/*
+    Since we have a default.conf, we don't need default values here.
+    Strings and vectors are initialized by default to empty,
+    but bool and int are not, so we must initialize them to avoid
+    undefined behavior.
+ */
 LocationConfig::LocationConfig(void)
 {
-    this->_path = "/";
-    this->_root = "./var/www/html";
     this->_autoindex = false;
-    this->_indexFile = "index.html";
-    this->_cgiExtension = "";
-    this->_cgiPass = "";
-    this->_uploadPath = "";
     this->_redirectCode = 0;
-    this->_redirectUrl = "";
 }
 
 LocationConfig::LocationConfig(const LocationConfig &other)
@@ -49,7 +47,7 @@ LocationConfig &LocationConfig::operator=(const LocationConfig &other)
 LocationConfig::~LocationConfig(void)
 {
 }
-
+//getters
 const std::string &LocationConfig::getPath(void) const
 {
     return(this->_path);
@@ -100,6 +98,7 @@ const std::string &LocationConfig::getRedirectUrl(void) const
     return (this->_redirectUrl);
 }
 
+//setters
 void LocationConfig::setPath(const std::string &path)
 {
     this->_path = path;
@@ -141,6 +140,7 @@ void LocationConfig::setRedirectUrl(const std::string &path)
     this->_redirectUrl = path;
 }
 
+//adders
 void LocationConfig::addAllowedMethod(std::string &method)
 {
     this->_allowedMethods.push_back(method);

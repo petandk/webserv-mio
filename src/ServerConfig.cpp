@@ -1,10 +1,13 @@
 #include "../inc/ServerConfig.hpp"
 
-//vectors and maps are initialized by default so no need.
+/*
+    Vectors, strings and maps are initialized by default to empty.
+    But std::size_t is not, so we must initialize it to avoid
+    undefined behavior.
+*/
 ServerConfig::ServerConfig(void)
 {
-    this->_host = "127.0.0.1";
-    this->_clientMaxBodySize = 1048576; //1Mb by default
+    this->_clientMaxBodySize = 0;
 }
 ServerConfig::ServerConfig(const ServerConfig &other)
 {
