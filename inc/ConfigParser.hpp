@@ -16,8 +16,10 @@ class ConfigParser{
         ConfigParser &operator=(const ConfigParser &other);
         ~ConfigParser(void);
 
+        bool parseConfigFile(void);
         bool parseConfigFile(const std::string &configFile);
 
+        const std::string   &getFileBuffer(void);
         const std::vector<ServerConfig> &getParsedServerConfigs(void) const;
 
         //exceptions

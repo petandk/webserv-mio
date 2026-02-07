@@ -1,5 +1,7 @@
 #include "../inc/ConfigParser.hpp"
-
+#include "../inc/Utils.hpp"
+#include <iostream>
+#include <fstream>
 
 ConfigParser::ConfigParser(void)
 {
@@ -25,13 +27,52 @@ ConfigParser::~ConfigParser(void)
 {
 }
 
-
-bool ConfigParser::parseConfigFile(const std::string &configFile)
+bool ConfigParser::parseConfigFile(void)
 {
-
-    return (true);
+    std::cout << "No config File specified, using default configuration." << std::endl;
+    return (parseConfigFile("Default.conf"));
 }
 
+/*
+
+ */
+bool ConfigParser::parseConfigFile(const std::string &configFile)
+{
+    try
+    {
+        std::string fullPath = "conf/" + configFile;
+        std::ifstream file(fullPath.c_str());
+        std::string line;
+
+        if (!file.is_open())
+            throw ConfFileException();
+
+        this->_fileBuffer.clear();
+        while (std::getline(file, line)) {
+            RemoveComments(line);
+            trimWhitepaces(line);
+            if (!line.empty())
+            {
+                this->_fileBuffer += line + "\n";
+                #ifdef DEBUG
+                    std::cout << line << std::endl;
+                #endif
+            }
+        }
+        file.close();
+        return (true);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr <<e.what() << std::endl;
+        return (false);
+    }
+}
+
+const std::string   &ConfigParser::getFileBuffer(void)
+{
+    return (this->_fileBuffer);
+}
 
 const std::vector<ServerConfig> &ConfigParser::getParsedServerConfigs(void) const
 {

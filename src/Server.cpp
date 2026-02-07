@@ -8,16 +8,19 @@ Server::Server(void)
 
 Server::Server(const std::vector<ServerConfig> &configs)
 {
+    (void)configs;
     std::cout << "Server created using config file"<< std::endl;
 }
 
 Server::Server(const Server &other)
 {
+    (void)other;
     std::cout << "Server created as a copy" << std::endl;
 }
 
 Server &Server::operator=(const Server &other)
 {
+    (void)other;
     std::cout << "Server assigned as a copy" << std::endl;
     return (*this);
 }

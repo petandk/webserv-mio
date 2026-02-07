@@ -3,12 +3,17 @@ NAME        = webserver
 COMPILER    = c++
 
 CFLAGS      = -Wall -Werror -Wextra -std=c++98 -Wshadow
+DEBUG_FLAGS = -DDEBUG -g
 
 SRC_DIR     = src/
 OBJ_DIR     = obj/
 INCLUDE_DIR = inc/
 
-SOURCE_FILES = Server.cpp \
+SOURCE_FILES = ServerConfig.cpp \
+                ConfigParser.cpp \
+                LocationConfig.cpp \
+                Server.cpp \
+                Utils.cpp \
                 main.cpp
 
 SRCS		= $(addprefix $(SRC_DIR), $(SOURCE_FILES))
@@ -54,6 +59,14 @@ run: all
 	@echo "==================================================="
 	@echo "\033[0m"
 	./$(NAME)
+
+debug: CFLAGS += $(DEBUG_FLAGS)
+debug: fclean all
+	@echo "\033[1;31m"
+	@echo "==================================================="
+	@echo "	🐛 DEBUG MODE ENABLED 🐛"
+	@echo "==================================================="
+	@echo "\033[0m"
 
 -include $(DEPS)
 .PHONY: all clean fclean re run
