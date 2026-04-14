@@ -2,6 +2,7 @@
 #include "../inc/Utils.hpp"
 #include <iostream>
 #include <fstream>
+#include <cctype>
 
 ConfigParser::ConfigParser(void)
 {
@@ -34,7 +35,7 @@ bool ConfigParser::parseConfigFile(void)
 }
 
 /*
-
+    Main Parsing Function
  */
 bool ConfigParser::parseConfigFile(const std::string &configFile)
 {
@@ -42,15 +43,33 @@ bool ConfigParser::parseConfigFile(const std::string &configFile)
     {
         std::string fullPath = "conf/" + configFile;
         std::ifstream file(fullPath.c_str());
-        std::string line;
 
         if (!file.is_open())
             throw ConfFileException();
+        if(!this->fillBuffer(file))
+            throw ConfFileException();
+        if (this->_fileBuffer.empty())
+            throw ConfFileException();
+        file.close();
 
-        this->_fileBuffer.clear();
+        if (!this->tokenizeBuffer())
+            throw ConfSyntaxException();
+        return (true);
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr <<e.what() << std::endl;
+        return (false);
+    }
+}
+
+bool ConfigParser::fillBuffer(std::ifstream &file)
+{
+    std::string line;
+    this->_fileBuffer.clear();
         while (std::getline(file, line)) {
-            RemoveComments(line);
-            trimWhitepaces(line);
+            ::RemoveComments(line);
+            ::trimWhitepaces(line);
             if (!line.empty())
             {
                 this->_fileBuffer += line + "\n";
@@ -59,14 +78,46 @@ bool ConfigParser::parseConfigFile(const std::string &configFile)
                 #endif
             }
         }
-        file.close();
-        return (true);
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr <<e.what() << std::endl;
+    if (file.bad())
         return (false);
+    return (true);
+}
+
+bool ConfigParser::tokenizeBuffer(void)
+{
+    std::string current;
+    char c;
+
+    this->_bufferTokens.clear();
+    for ( size_t i = 0; i < this->_fileBuffer.size(); i++)
+    {
+        c = this->_fileBuffer[i];
+        if(c == ' ' || c =='\n'  || c =='\t' || c =='\r')
+        {
+            if (!current.empty())
+                this->_bufferTokens.push_back(current);
+            current.clear();
+            continue;
+        }
+        else if(c == '{' || c == '}' || c == ';')
+        {
+            if (!current.empty())
+                this->_bufferTokens.push_back(current);
+            current.clear();
+            this->_bufferTokens.push_back(std::string(1, c));
+            continue;
+        }
+
+        else
+            current.push_back(c);
     }
+    if (!current.empty())
+        this->_bufferTokens.push_back(current);
+
+    if (this->_bufferTokens.empty())
+        return (false);
+        
+    return (true);
 }
 
 const std::string   &ConfigParser::getFileBuffer(void)

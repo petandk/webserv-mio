@@ -4,12 +4,16 @@
 #include <string>
 #include <vector>
 #include <exception>
+#include <fstream>
+
 #include "ServerConfig.hpp"
 
 class ConfigParser{
     private:
         std::vector<ServerConfig>   _parsedServerConfigs;
         std::string                 _fileBuffer;
+        std::vector<std::string>    _bufferTokens;
+        std::size_t                 _currentToken;
     public:
         ConfigParser(void);
         ConfigParser(const ConfigParser &other);
@@ -18,6 +22,9 @@ class ConfigParser{
 
         bool parseConfigFile(void);
         bool parseConfigFile(const std::string &configFile);
+
+        bool fillBuffer(std::ifstream &file);
+        bool tokenizeBuffer(void);
 
         const std::string   &getFileBuffer(void);
         const std::vector<ServerConfig> &getParsedServerConfigs(void) const;
