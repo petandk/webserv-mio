@@ -26,6 +26,9 @@ class ConfigParser{
         bool fillBuffer(std::ifstream &file);
         bool tokenizeBuffer(void);
 
+        bool parseTokens(void);
+        bool parseServerBlock(ServerConfig &server);
+
         const std::string   &getFileBuffer(void);
         const std::vector<ServerConfig> &getParsedServerConfigs(void) const;
 

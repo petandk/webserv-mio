@@ -17,8 +17,14 @@ int main(int argc, char *argv[])
         success = parser.parseConfigFile(argv[1]);
     else
         success = parser.parseConfigFile();
-    if (success)
-        std::cout << parser.getFileBuffer();
+    #ifdef DEBUG
+        if (success)
+            std::cout << "File buffer content:" << std::endl << parser.getFileBuffer();
+    #endif
 
-    return (1);
+    /*\
+        !success because true = 1, false = 0
+        but return expects 0 for no error, anything else for error
+    */
+    return (!success);
 }

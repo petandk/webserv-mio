@@ -30,7 +30,9 @@ ConfigParser::~ConfigParser(void)
 
 bool ConfigParser::parseConfigFile(void)
 {
-    std::cout << "No config File specified, using default configuration." << std::endl;
+    #ifdef DEBUG
+        std::cout << "No config file specified, using default configuration." << std::endl;
+    #endif
     return (parseConfigFile("Default.conf"));
 }
 
@@ -54,6 +56,8 @@ bool ConfigParser::parseConfigFile(const std::string &configFile)
 
         if (!this->tokenizeBuffer())
             throw ConfSyntaxException();
+        if (!this->parseTokens())
+            throw ConfSyntaxException();
         return (true);
     }
     catch (const std::exception &e)
@@ -71,12 +75,7 @@ bool ConfigParser::fillBuffer(std::ifstream &file)
             ::RemoveComments(line);
             ::trimWhitepaces(line);
             if (!line.empty())
-            {
                 this->_fileBuffer += line + "\n";
-                #ifdef DEBUG
-                    std::cout << line << std::endl;
-                #endif
-            }
         }
     if (file.bad())
         return (false);
@@ -117,6 +116,22 @@ bool ConfigParser::tokenizeBuffer(void)
     if (this->_bufferTokens.empty())
         return (false);
         
+    return (true);
+}
+
+bool ConfigParser::parseTokens(void)
+{
+    this->_currentToken = 0;
+    this->_parsedServerConfigs.clear();
+    ServerConfig server;
+    while (this->_currentToken < this->_bufferTokens.size())
+    {
+        if (this->parseServerBlock(server))
+            this->_parsedServerConfigs.push_back(server);
+        else
+            return (false);
+        this->_currentToken++;
+    }
     return (true);
 }
 
