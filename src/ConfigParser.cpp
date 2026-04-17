@@ -123,17 +123,29 @@ bool ConfigParser::parseTokens(void)
 {
     this->_currentToken = 0;
     this->_parsedServerConfigs.clear();
-    ServerConfig server;
+    
     while (this->_currentToken < this->_bufferTokens.size())
     {
-        if (this->parseServerBlock(server))
-            this->_parsedServerConfigs.push_back(server);
-        else
+        ServerConfig server;
+        if (!this->parseServerBlock(server))
             return (false);
-        this->_currentToken++;
+        this->_parsedServerConfigs.push_back(server);
     }
     return (true);
 }
+
+bool ConfigParser::parseServerBlock(ServerConfig &server)
+{
+    if (this->_currentToken >= this->_bufferTokens.size()
+        || this->_bufferTokens[this->_currentToken] !="server")
+        return (false);
+    this->_currentToken++;
+    if (this->_currentToken >= this->_bufferTokens.size()
+        || this->_bufferTokens[this->_currentToken] !="{")
+        return (false);
+    this->_currentToken++;
+}
+
 
 const std::string   &ConfigParser::getFileBuffer(void)
 {

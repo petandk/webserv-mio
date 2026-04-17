@@ -9,11 +9,14 @@
 
 class ServerConfig{
     private:
+        
         std::vector<int> _ports;
         std::string _host;
         std::vector<std::string> _serverNames;
-        std::map<int, std::string> _errorPages;
+        std::string _root;
+        std::vector<std::string> _indexFiles;
         std::size_t _clientMaxBodySize;
+        std::map<int, std::string> _errorPages;
         std::vector<LocationConfig> _locations;
 
     public:
@@ -26,21 +29,26 @@ class ServerConfig{
         const std::vector<int> &getPorts(void) const;
         const std::string &getHost(void) const;
         const std::vector <std::string> &getServerNames(void) const;
-        const std::map<int, std::string> &getErrorPages(void) const;
+        const std::string &getRoot(void) const;
+        const std::vector <std::string> &getIndexFiles(void) const;
         std::size_t getClientMaxBodySize(void) const;
+        const std::map<int, std::string> &getErrorPages(void) const;
         const std::vector<LocationConfig> &getLocations(void) const;
 
         //setters
         void setPorts(const std::vector<int> &ports);
         void setHost(const std::string &host);
         void setServerNames(const std::vector<std::string> &names);
-        void setErrorPages(const std::map<int, std::string> &pages);
+        void setRoot(const std::string &root);
+        void setIndexFiles(const std::vector<std::string> &indexFiles);
         void setClientMaxBodySize(std::size_t maxBodySize);
+        void setErrorPages(const std::map<int, std::string> &pages);
         void setLocations(const std::vector <LocationConfig> &locations);
 
         //adders
         void addPort(int port);
         void addServerName(const std::string &name);
+        void addIndexFile(const std::string &indexFile);
         void addErrorPage(int code,const std::string &path);
         void addLocation(const LocationConfig &location);
 };
