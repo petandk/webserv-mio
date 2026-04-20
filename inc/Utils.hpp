@@ -5,6 +5,6 @@
 
 void    RemoveComments(std::string &fullLine);
 void    trimWhitepaces(std::string &fullLine);
-
+int     digitCounter(int num);
 
 #endif

@@ -54,9 +54,11 @@ class LocationConfig {
         void setRedirectUrl(const std::string &path);
         void setTryFiles(const std::vector<std::string> &files);
 
+        //adders
         void addAllowedMethod(const std::string &method);
         void addTryFile(const std::string &file);
         void addIndexFile(const std::string &index);
+
 };
 
 #endif

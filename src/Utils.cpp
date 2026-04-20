@@ -27,3 +27,17 @@ void    trimWhitepaces(std::string &fullLine)
     end = fullLine.find_last_not_of(" \t\r\n");
     fullLine = fullLine.substr(start, (end - start) + 1);
 }
+
+int digitCounter(int num)
+{
+    int digits = 0;
+    
+    if (num < 0)
+        num *= -1;
+    while (num > 0)
+    {
+        digits++;
+        num /= 10;
+    }
+    return (digits);
+}

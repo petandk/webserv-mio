@@ -14,6 +14,7 @@ class ConfigParser{
         std::string                 _fileBuffer;
         std::vector<std::string>    _bufferTokens;
         std::size_t                 _currentToken;
+
     public:
         ConfigParser(void);
         ConfigParser(const ConfigParser &other);
@@ -26,8 +27,20 @@ class ConfigParser{
         bool fillBuffer(std::ifstream &file);
         bool tokenizeBuffer(void);
 
+        bool hasToken(void) const;
+        const std::string &getToken(void) const;
+        bool consumeToken(const std::string &token);
+
         bool parseTokens(void);
         bool parseServerBlock(ServerConfig &server);
+        bool parseListen(ServerConfig &server);
+        bool parseHost(ServerConfig &server);
+        bool parseServerName(ServerConfig &server);
+        bool parseServerRoot(ServerConfig &server);
+        bool parseServerIndex(ServerConfig &server);
+        bool parseErrorPage(ServerConfig &server);
+        bool parseLocationBlock(ServerConfig &server);
+
 
         const std::string   &getFileBuffer(void);
         const std::vector<ServerConfig> &getParsedServerConfigs(void) const;

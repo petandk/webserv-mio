@@ -2,7 +2,10 @@
 #include "../inc/Utils.hpp"
 #include <iostream>
 #include <fstream>
+#include <sstream>
+#include <string>
 #include <cctype>
+#include <cstdio>
 
 ConfigParser::ConfigParser(void)
 {
@@ -134,18 +137,106 @@ bool ConfigParser::parseTokens(void)
     return (true);
 }
 
-bool ConfigParser::parseServerBlock(ServerConfig &server)
+bool ConfigParser::hasToken(void) const
 {
-    if (this->_currentToken >= this->_bufferTokens.size()
-        || this->_bufferTokens[this->_currentToken] !="server")
-        return (false);
-    this->_currentToken++;
-    if (this->_currentToken >= this->_bufferTokens.size()
-        || this->_bufferTokens[this->_currentToken] !="{")
-        return (false);
-    this->_currentToken++;
+    return(this->_currentToken < this->_bufferTokens.size());
 }
 
+const std::string &ConfigParser::getToken(void) const
+{
+    return (this->_bufferTokens[this->_currentToken]);
+}
+
+bool ConfigParser::consumeToken(const std::string &token)
+{
+        if (!hasToken() || getToken() != token)
+            return (false);
+    this->_currentToken++;
+    return (true);
+}
+
+bool ConfigParser::parseServerBlock(ServerConfig &server)
+{
+    const std::string serverDirectives[] ={
+        "listen",
+        "host",
+        "server_name",
+        "root",
+        "index",
+        "error_page",
+        "location"
+    };
+    size_t i;
+    if (!consumeToken("server"))
+        return (false);
+    if (!consumeToken("{"))
+        return (false);
+    while (hasToken() && getToken() != "}")
+    {
+        i = 0;
+        while (i < 6 && getToken() != serverDirectives[i])
+            i++;
+        switch(i)
+        {
+            case 0: if (!parseListen(server)) return false; break;
+            case 1: if (!parseHost(server)) return false; break;
+            case 2: if (!parseServerName(server)) return false; break;
+            case 3: if (!parseServerRoot(server)) return false; break;
+            case 4: if (!parseServerIndex(server)) return false; break;
+            case 5: if (!parseErrorPage(server)) return false; break;
+            case 6: if (!parseLocationBlock(server)) return false; break;
+            default: return false;
+        }
+
+    }
+}
+
+bool ConfigParser::parseListen(ServerConfig &server)
+{
+    if(!consumeToken("listen"))
+        return (false);
+    bool foundPort = false;
+    while (hasToken() && getToken() != ";")
+    {
+        std::stringstream ss(getToken());
+        int port;
+        if (!(ss >> port) || port < 1 || port > 65535)
+            return (false);
+        if (getToken().length() != digitCounter(port))
+            return (false);
+        server.addPort(port);
+        foundPort = true;
+        if(!consumeToken(getToken()))
+            return (false);
+    }
+    if (!foundPort || !consumeToken(";"))
+        return (false);
+    return (true);
+}
+
+/*
+
+*/
+
+bool ConfigParser::parseHost(ServerConfig &server)
+{
+    if(!consumeToken("host") || !hasToken())
+        return (false);
+    std::string host = getToken();
+    int a,b,c,d;
+    char garbage;
+    if (std::sscanf(host.c_str(), "%d.%d.%d.%d%c", &a, &b, &c, &d, &garbage) != 4)
+        return (false);
+    if (a < 0 || a > 255 ||
+        b < 0 || b > 255 ||
+        c < 0 || c > 255 ||
+        d < 0 || d > 255)
+        return (false);
+    server.setHost(host);
+    if (!consumeToken(host) || !consumeToken(";"))
+        return (false);
+    return (true);
+}
 
 const std::string   &ConfigParser::getFileBuffer(void)
 {
