@@ -41,3 +41,33 @@ int digitCounter(int num)
     }
     return (digits);
 }
+
+bool isAllDigits(const std::string &totest)
+{
+    if(totest.empty())
+        return (false);
+    for(size_t i = 0; i<totest.size(); i++)
+    {
+        if(!std::isdigit(static_cast<unsigned char>(totest[i])))
+            return (false);
+    }
+    return (true);
+}
+
+bool isAllowedChars(const std::string &totest)
+{
+    return (isAllowedChars(totest, ""));
+}
+
+bool isAllowedChars(const std::string &totest, const std::string &accepted)
+{
+    if (totest.empty())
+        return (false);
+    for(size_t i = 0; i<totest.size(); i++)
+    {
+        if(!std::isalnum(static_cast<unsigned char>(totest[i])) &&
+            accepted.find(totest[i]) == std::string::npos)
+            return (false);
+    }
+    return (true);
+}

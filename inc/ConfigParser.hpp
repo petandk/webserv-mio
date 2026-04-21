@@ -7,6 +7,7 @@
 #include <fstream>
 
 #include "ServerConfig.hpp"
+#include "LocationConfig.hpp"
 
 class ConfigParser{
     private:
@@ -30,17 +31,21 @@ class ConfigParser{
         bool hasToken(void) const;
         const std::string &getToken(void) const;
         bool consumeToken(const std::string &token);
-
+        
         bool parseTokens(void);
+
+        //server parsing:
         bool parseServerBlock(ServerConfig &server);
         bool parseListen(ServerConfig &server);
         bool parseHost(ServerConfig &server);
         bool parseServerName(ServerConfig &server);
+        bool parseMaxBodySize(ServerConfig &server);
         bool parseServerRoot(ServerConfig &server);
         bool parseServerIndex(ServerConfig &server);
         bool parseErrorPage(ServerConfig &server);
+        
+        //location parsing:
         bool parseLocationBlock(ServerConfig &server);
-
 
         const std::string   &getFileBuffer(void);
         const std::vector<ServerConfig> &getParsedServerConfigs(void) const;
@@ -62,6 +67,21 @@ class ConfigParser{
             public:
                 virtual const char *what() const throw();
         };
+
+        template <typename T>
+        bool parseNumbers(ServerConfig &server,
+            const std::string &token,
+            T min,
+            T max,
+            void (ServerConfig::*addFunc)(T));
+        
+        template <typename Config, typename Setter>
+        bool parseString(Config &config, 
+            const std::string &token, 
+            const std::string &accepted, 
+            Setter setter);
 };
+
+#include "ConfigParser.tpp"
 
 #endif

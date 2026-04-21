@@ -58,7 +58,6 @@ class LocationConfig {
         void addAllowedMethod(const std::string &method);
         void addTryFile(const std::string &file);
         void addIndexFile(const std::string &index);
-
 };
 
 #endif
