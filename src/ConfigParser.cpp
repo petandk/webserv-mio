@@ -34,7 +34,7 @@ ConfigParser::~ConfigParser(void)
 bool ConfigParser::parseConfigFile(void)
 {
     #ifdef DEBUG
-        std::cout << "No config file specified, using default configuration." << std::endl;
+        std::cout << "\033[34mNo config file specified, using default configuration.\033[0m" << std::endl;
     #endif
     return (parseConfigFile("Default.conf"));
 }
@@ -57,10 +57,24 @@ bool ConfigParser::parseConfigFile(const std::string &configFile)
             throw ConfFileException();
         file.close();
 
-        if (!this->tokenizeBuffer())
+        if (!this->tokenizeBuffer()) {
+            #ifdef DEBUG
+                        std::cout << "[DEBUG] Tokenization failed." << std::endl;
+            #endif
             throw ConfSyntaxException();
-        if (!this->parseTokens())
+        }
+            #ifdef DEBUG
+                std::cout << "\033[35m[DEBUG] Tokens after tokenization:\033[0m" << std::endl;
+                for (size_t i = 0; i < this->_bufferTokens.size(); ++i) {
+                    std::cout << "  [" << i << "]: '" << this->_bufferTokens[i] << "'" << std::endl;
+                }
+            #endif
+        if (!this->parseTokens()) {
+            #ifdef DEBUG
+                        std::cout << "[DEBUG] Parsing tokens failed." << std::endl;
+            #endif
             throw ConfSyntaxException();
+        }
         return (true);
     }
     catch (const std::exception &e)
@@ -116,7 +130,6 @@ bool ConfigParser::tokenizeBuffer(void)
         this->_bufferTokens.push_back(current);
 
     if (this->_bufferTokens.empty()) return (false);
-        
     return (true);
 }
 
@@ -128,9 +141,23 @@ bool ConfigParser::parseTokens(void)
     while (this->_currentToken < this->_bufferTokens.size())
     {
         ServerConfig server;
-        if (!this->parseServerBlock(server)) return (false);
+        #ifdef DEBUG
+                std::cout << "[DEBUG] Calling parseServerBlock. Current token: '" << getToken() << "'" << std::endl;
+        #endif
+        if (!this->parseServerBlock(server)) {
+            #ifdef DEBUG
+                        std::cout << "[DEBUG] Error in parseServerBlock. Token: '" << getToken() << "'" << std::endl;
+            #endif
+            return (false);
+        }
+        #ifdef DEBUG
+                std::cout << "[DEBUG] Server added to _parsedServerConfigs" << std::endl;
+        #endif
         this->_parsedServerConfigs.push_back(server);
     }
+    #ifdef DEBUG
+        std::cout << "[DEBUG] Exiting parseTokens" << std::endl;
+    #endif
     return (true);
 }
 
@@ -153,6 +180,9 @@ bool ConfigParser::consumeToken(const std::string &token)
 
 bool ConfigParser::parseServerBlock(ServerConfig &server)
 {
+#ifdef DEBUG
+    std::cout << "[DEBUG] Entering parseServerBlock" << std::endl;
+#endif
     const std::string serverDirectives[] ={
         "listen",
         "host",
@@ -164,8 +194,18 @@ bool ConfigParser::parseServerBlock(ServerConfig &server)
         "location"
     };
     size_t i;
-    if (!consumeToken("server")) return (false);
-    if (!consumeToken("{")) return (false);
+    if (!consumeToken("server")) {
+        #ifdef DEBUG
+                std::cout << "[DEBUG] Failed to consume 'server' token." << std::endl;
+        #endif
+        return (false);
+    }
+    if (!consumeToken("{")) {
+        #ifdef DEBUG
+                std::cout << "[DEBUG] Failed to consume '{' after server." << std::endl;
+        #endif
+        return (false);
+    }
     while (hasToken() && getToken() != "}")
     {
         i = 0;
@@ -173,22 +213,85 @@ bool ConfigParser::parseServerBlock(ServerConfig &server)
             i++;
         switch(i)
         {
-            case 0: if (!parseListen(server)) return (false); break;
-            case 1: if (!parseHost(server)) return (false); break;
-            case 2: if (!parseServerName(server)) return (false); break;
-            case 3: if (!parseMaxBodySize(server)) return (false); break;
-            case 4: if (!parseServerRoot(server)) return (false); break;
-            case 5: if (!parseServerIndex(server)) return (false); break;
-            case 6: if (!parseErrorPage(server)) return (false); break;
-            case 7: if (!parseLocationBlock(server)) return (false); break;
-            default: return (false);
+            case 0: if (!parseListen(server)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseListen. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false); 
+                } 
+                break;
+            case 1: if (!parseHost(server)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseHost. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false); 
+                } 
+                break;
+            case 2: if (!parseServerName(server)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseServerName. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false); 
+                }
+                break;
+            case 3: if (!parseMaxBodySize(server)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseMaxBodySize. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            case 4: if (!parseServerRoot(server)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseServerRoot. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            case 5: if (!parseServerIndex(server)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseServerIndex. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            case 6: if (!parseErrorPage(server)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseErrorPage. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            case 7: if (!parseLocationBlock(server)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseLocationBlock. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            default: 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Unknown directive in server block. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
         }
     }
     // default values here:
     if(server.getHost().empty())
         server.setHost("0.0.0.0");
     
-    if(!consumeToken("}")) return (false);
+    #ifdef DEBUG
+        std::cout << "[DEBUG] Finished parsing server block. Checking for closing '}'..." << std::endl;
+    #endif
+    if(!consumeToken("}")) {
+        #ifdef DEBUG
+                std::cout << "[DEBUG] Failed to consume closing '}' for server block." << std::endl;
+        #endif
+        return (false);
+    }
+    #ifdef DEBUG
+        std::cout << "[DEBUG] Exiting parseServerBlock" << std::endl;
+    #endif
     return (true);
 }
 
@@ -267,16 +370,11 @@ bool ConfigParser::parseErrorPage(ServerConfig &server)
     return (true);
 }
 
-/*
-    sacar el codigo de Location en parseLocation y hacer una
-    template, luego llamarlo aqui con serverconfig y 
-    dentro llamarlo con LocationConfig recursivo
-    case 7: if (!parseLocation(location)) return (false); break;
-
-*/
-
 bool ConfigParser::parseLocationBlock(ServerConfig &server)
 {
+#ifdef DEBUG
+    std::cout << "[DEBUG] Entering parseLocationBlock. Current token: '" << getToken() << "'" << std::endl;
+#endif
     const std::string locationDirectives[] = {
         "root",
         "index",
@@ -285,38 +383,237 @@ bool ConfigParser::parseLocationBlock(ServerConfig &server)
         "autoindex",
         "cgi_extension",
         "cgi_pass",
-        "location"
+        "location",
+        "return"
     };
     size_t i;
     LocationConfig location;
-    if (!consumeToken("location") || ! hasToken())
+    if (!consumeToken("location") || ! hasToken()) {
+        #ifdef DEBUG
+                std::cout << "[DEBUG] Failed to consume 'location' token or missing token." << std::endl;
+        #endif
         return (false);
+    }
     std::string path = getToken();
-    if (!parseString(location, path, "/.*_-~%@+", &LocationConfig::setPath))
+    if (!::isAllowedChars(path, "/.*_-~%@+")){
+        #ifdef DEBUG
+            std::cout << "[DEBUG] Invalid character in location path: '" << path << "'" << std::endl;
+        #endif
         return (false);
-    if (!consumeToken(path)) return (false);
-    if (!consumeToken("{")) return(false);
+    }
+    location.setPath(path);
+    if (!consumeToken(path)) {
+        #ifdef DEBUG
+                std::cout << "[DEBUG] Failed to consume location path token: '" << path << "'" << std::endl;
+        #endif
+        return (false);
+    }
+    if (!consumeToken("{")) {
+        #ifdef DEBUG
+                std::cout << "[DEBUG] Failed to consume '{' after location path." << std::endl;
+        #endif
+        return(false);
+    }
     while (hasToken() && getToken() != "}")
     {
         i = 0;
-        while (i < 8 && getToken() != locationDirectives[i])
+        while (i < 9 && getToken() != locationDirectives[i])
             i++;
         switch(i)
         {
-            case 0: if (!parseLocationRoot(location)) return (false); break;
-            case 1: if (!parseLocationIndex(location)) return (false); break;
-            case 2: if (!parseAllowedMethods(location)) return (false); break;
-            case 3: if (!parseUploadPath(location)) return (false); break;
-            case 4: if (!parseAutoindex(location)) return (false); break;
-            case 5: if (!parseCGIExtension(location)) return (false); break;
-            case 6: if (!parseCGIpass(location)) return (false); break;
-            case 7: if (!parseLocation(location)) return (false); break;
-            default: return (false);
+            case 0: if (!parseLocationRoot(location)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseLocationRoot. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            case 1: if (!parseLocationIndex(location)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseLocationIndex. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            case 2: if (!parseAllowedMethods(location)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseAllowedMethods. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            case 3: if (!parseUploadPath(location)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseUploadPath. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            case 4: if (!parseAutoindex(location)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseAutoindex. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            case 5: if (!parseCGIExtension(location)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseCGIExtension. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            case 6: if (!parseCGIpass(location)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseCGIpass. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            case 7: if (!parseLocation(location)) { 
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseLocation (nested). Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            case 8: if(!parseReturn(location)){
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Error in parseReturn. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
+                }
+                break;
+            default:
+                    #ifdef DEBUG
+                                    std::cout << "[DEBUG] Unknown directive in location block. Token: '" << getToken() << "'" << std::endl;
+                    #endif
+                    return (false);
         }
     }
-    
+    server.addLocation(location);
+    #ifdef DEBUG
+        std::cout << "[DEBUG] Location added to server" << std::endl;
+    #endif
+    if (!consumeToken("}")) {
+        #ifdef DEBUG
+                std::cout << "[DEBUG] Failed to consume closing '}' for location block." << std::endl;
+        #endif
+        return (false);
+    }
+    #ifdef DEBUG
+        std::cout << "[DEBUG] Exiting parseLocationBlock" << std::endl;
+    #endif
+    return (true);
 }
 
+bool ConfigParser::parseLocationRoot(LocationConfig &location)
+{
+    return (parseString(location, "root", "/._-", &LocationConfig::setRoot));
+}
+
+bool ConfigParser::parseLocationIndex(LocationConfig &location)
+{
+    return (parseString(location, "index", "/._-", &LocationConfig::addIndexFile));
+}
+
+bool ConfigParser::parseAllowedMethods(LocationConfig &location)
+{
+    if (!consumeToken("allowed_methods") || !hasToken())
+        return (false);
+    bool found = false;
+    while (hasToken() && getToken() != ";")
+    {
+        std::string method = getToken();
+        if (method != "GET" && method != "POST" && method != "DELETE")
+            return (false);
+        location.addAllowedMethod(method);
+        found = true;
+        if (!consumeToken(method))
+            return(false);
+    }
+    if(!found || !consumeToken(";"))
+        return (false);
+    return (true);
+}
+
+bool ConfigParser::parseUploadPath(LocationConfig &location)
+{
+    return (parseString(location, "upload_path", "/._-", &LocationConfig::setUploadPath));
+}
+
+bool ConfigParser::parseAutoindex(LocationConfig &location)
+{
+    if (!consumeToken("autoindex") || !hasToken())
+        return (false);
+    std::string flag = getToken();
+    if (flag != "on" && flag != "off")
+        return (false);
+    location.setAutoindex(flag == "on");
+    if (!consumeToken(flag) || !consumeToken(";"))
+        return (false);
+    return (true);
+}
+
+bool ConfigParser::parseCGIExtension(LocationConfig &location)
+{
+    return (parseString(location, "cgi_extension", ".", &LocationConfig::setCgiExtension));
+}
+
+bool ConfigParser::parseCGIpass(LocationConfig &location)
+{
+    return (parseString(location, "cgi_pass", "/._-", &LocationConfig::setCgiPass));
+}
+
+bool ConfigParser::parseLocation(LocationConfig &location)
+{
+    (void)location;
+
+    if (!consumeToken("location") || !hasToken())
+        return (false);
+    std::cout << "\033[31m⚠️  Anidated locations not allowed ⚠️" << std::endl;
+    std::cout << "\t" << getToken();
+    if (!consumeToken(getToken()))
+        return (false);
+    if (!hasToken() || !consumeToken("{"))
+        return (false);
+    int level = 1;
+    while (hasToken() && level > 0)
+    {
+        if (getToken() == "{") ++level;
+        else if (getToken() == "}") --level;
+        if (!consumeToken(getToken())) return (false);
+    }
+    std::cout << " will be ignored!\033[0m" << std::endl;
+    return (true);
+}
+
+/*
+    I cannot use parseNumbers because we have 2 items to store but
+    parseNumbers only wants 1. Also parseNumbers is only for ";" ended ones.
+*/
+bool ConfigParser::parseReturn(LocationConfig &location)
+{
+    if (!consumeToken("return") || !hasToken())
+        return (false);
+    std::string codeNum = getToken();
+    int code;
+    if (!isAllDigits(codeNum)) return false;
+    std::stringstream ss(codeNum);
+    if (!(ss >> code) || code < 100 || code > 599)
+    return false;
+    if(!consumeToken(codeNum)) return (false);
+    std::string url;
+    if (hasToken() && getToken() != ";"){
+        url = getToken();
+        if(!::isAllowedChars(url, "/._-~%@+")) return (false);
+        if(!consumeToken(url)) return (false);
+    }
+    if (!consumeToken(";")) return (false);
+    location.setRedirectCode(code);
+    location.setRedirectUrl(url);
+    return (true);
+}
 
 const std::string   &ConfigParser::getFileBuffer(void)
 {

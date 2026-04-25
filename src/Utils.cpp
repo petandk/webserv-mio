@@ -1,5 +1,5 @@
 #include <string>
-
+#include <iostream>
 /*
     If not # found, then find returns std::string::npos wich is just max size for size_t
  */
@@ -28,9 +28,9 @@ void    trimWhitepaces(std::string &fullLine)
     fullLine = fullLine.substr(start, (end - start) + 1);
 }
 
-int digitCounter(int num)
+size_t digitCounter(int num)
 {
-    int digits = 0;
+    size_t digits = 0;
     
     if (num < 0)
         num *= -1;
@@ -46,10 +46,33 @@ bool isAllDigits(const std::string &totest)
 {
     if(totest.empty())
         return (false);
+
     for(size_t i = 0; i<totest.size(); i++)
     {
-        if(!std::isdigit(static_cast<unsigned char>(totest[i])))
+        if(!std::isdigit(static_cast<unsigned char>(totest[i]))) {
+            #ifdef DEBUG
+                        std::cout << "[DEBUG] isAllDigits: non-digit character found at position " << i << "." << std::endl;
+            #endif
             return (false);
+        }
+    }
+    return (true);
+}
+
+bool isAllowedChars(const std::string &totest, const std::string &accepted)
+{
+    if (totest.empty())
+        return (false);
+
+    for(size_t i = 0; i<totest.size(); i++)
+    {
+        if(!std::isalnum(static_cast<unsigned char>(totest[i])) &&
+            accepted.find(totest[i]) == std::string::npos) {
+            #ifdef DEBUG
+                        std::cout << "[DEBUG] isAllowedChars: invalid character '" << totest[i] << "' at position " << i << "." << std::endl;
+            #endif
+            return (false);
+        }
     }
     return (true);
 }
@@ -57,17 +80,4 @@ bool isAllDigits(const std::string &totest)
 bool isAllowedChars(const std::string &totest)
 {
     return (isAllowedChars(totest, ""));
-}
-
-bool isAllowedChars(const std::string &totest, const std::string &accepted)
-{
-    if (totest.empty())
-        return (false);
-    for(size_t i = 0; i<totest.size(); i++)
-    {
-        if(!std::isalnum(static_cast<unsigned char>(totest[i])) &&
-            accepted.find(totest[i]) == std::string::npos)
-            return (false);
-    }
-    return (true);
 }

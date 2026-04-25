@@ -9,7 +9,8 @@ SRC_DIR     = src/
 OBJ_DIR     = obj/
 INCLUDE_DIR = inc/
 
-SOURCE_FILES = ServerConfig.cpp \
+SOURCE_FILES = 	Debug.cpp \
+				ServerConfig.cpp \
                 ConfigParser.cpp \
                 LocationConfig.cpp \
                 Server.cpp \

@@ -50,7 +50,7 @@ class LocationConfig {
         void setUploadPath(const std::string &path);
         void setCgiExtension(const std::string &extension);
         void setCgiPass(const std::string &path);
-        void setRedirectionCode(int code);
+        void setRedirectCode(int code);
         void setRedirectUrl(const std::string &path);
         void setTryFiles(const std::vector<std::string> &files);
 

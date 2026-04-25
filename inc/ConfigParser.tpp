@@ -1,5 +1,7 @@
 #include <sstream>
 #include <climits>
+#include "../inc/Utils.hpp"
+#include <iostream>
 
 template <typename T>
 bool ConfigParser::parseNumbers(ServerConfig &server,
@@ -19,7 +21,6 @@ bool ConfigParser::parseNumbers(ServerConfig &server,
         T num;
         if (!(ss >> num) || num < min || num > max)
             return false;
-        // Validación extra: sin ceros a la izquierda
         if (value.length() != digitCounter(num))
             return false;
         (server.*addFunc)(num);

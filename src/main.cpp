@@ -1,4 +1,5 @@
 #include "../inc/ConfigParser.hpp"
+#include "../inc/Debug.hpp"
 #include <iostream>
 
 int main(int argc, char *argv[])
@@ -17,12 +18,14 @@ int main(int argc, char *argv[])
         success = parser.parseConfigFile(argv[1]);
     else
         success = parser.parseConfigFile();
-    #ifdef DEBUG
-        if (success)
-            std::cout << "File buffer content:" << std::endl << parser.getFileBuffer();
-    #endif
 
-    /*\
+    #ifdef DEBUG
+    if (success) {
+        printParsedConfig(parser);
+    }
+    //getfilebuffer initialized but never used; maybe remove it??
+    #endif
+    /*
         !success because true = 1, false = 0
         but return expects 0 for no error, anything else for error
     */

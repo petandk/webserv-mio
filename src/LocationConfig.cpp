@@ -159,7 +159,7 @@ void LocationConfig::setCgiPass(const std::string &path)
     this->_cgiPass = path;
 }
 
-void LocationConfig::setRedirectionCode(int code)
+void LocationConfig::setRedirectCode(int code)
 {
     this->_redirectCode = code;
 }

@@ -46,7 +46,16 @@ class ConfigParser{
         
         //location parsing:
         bool parseLocationBlock(ServerConfig &server);
-
+        bool parseLocationRoot(LocationConfig &location);
+        bool parseLocationIndex(LocationConfig &location);
+        bool parseAllowedMethods(LocationConfig &location);
+        bool parseUploadPath(LocationConfig &location);
+        bool parseAutoindex(LocationConfig &location);
+        bool parseCGIExtension(LocationConfig &location);
+        bool parseCGIpass(LocationConfig &location);
+        bool parseLocation(LocationConfig &location);
+        bool parseReturn(LocationConfig &location);
+        
         const std::string   &getFileBuffer(void);
         const std::vector<ServerConfig> &getParsedServerConfigs(void) const;
 
