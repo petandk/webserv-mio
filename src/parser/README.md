@@ -120,4 +120,45 @@ If the configuration file is missing, empty, or contains errors, the parser will
 
 ---
 
+## Build & Run Instructions
+
+### Compile (Release)
+```
+make
+```
+
+### Compile (Debug mode)
+```
+make debug
+```
+
+### Run with default configuration
+```
+./webserver
+```
+(This will use `conf/Default.conf` automatically if no argument is given.)
+
+### Run with a specific configuration file
+```
+./webserver conf/Testing.conf
+```
+(Replace `conf/Testing.conf` with your desired config file path.)
+
+### Clean object files
+```
+make clean
+```
+
+### Clean everything (objects + executable)
+```
+make fclean
+```
+
+### Rebuild everything from scratch
+```
+make re
+```
+
+---
+
 For more details, see the code and comments in the source files.
