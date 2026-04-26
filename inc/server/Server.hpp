@@ -5,6 +5,7 @@
 # include <map>
 # include <string>
 # include <poll.h>
+# include <unistd.h>
 
 # include "../parser/ServerConfig.hpp"
 
@@ -13,25 +14,26 @@ class Request;
 class Server {
     private:
         std::vector<struct pollfd>  _fds;
-        std::vector<ServerConfig>   _configs;
         std::map<int, std::string>  _clientBuffers;
+        ServerConfig                _config;
+        std::vector<int>            _listen_fds;
 
-        void setupSockets();           // socket(), bind(), listen()
-        void acceptNewConnection();    // accept()
-        void readFromClient(int fd);   // recv() -> Leer y guardar bytes
-        void sendToClient(int fd);     // send() -> Envía la respuesta de Sayer
+        void setupSockets(void);           // socket(), bind(), listen()
+        void acceptNewConnection(void);    // accept()
+        void readFromClient(int fd);   // recv() -> Read and store bytes
+        void sendToClient(int fd);     // send() -> Sends response to Protocol Handler
 
-        const ServerConfig *getServerConfigByPort(int port) const;
-        std::string  getRawRequest(int client_fd) const; //Devuelve el contenido de _clientBuffers[client_fd]
+        std::string  getRawRequest(int client_fd) const; //Returns the content of _clientBuffers[client_fd]
 
+        void cleanup(void);
     public:
-        Server(void);                                 // 1. Constructor por defecto
-        Server(const std::vector<ServerConfig> &configs);          //1.1 Constructor con ruta
-        Server(const Server &other);              // 2. Constructor de copia
-        Server &operator=(const Server &other);   // 3. Operador de asignación
-        ~Server(void);                                // 4. Destructor
+        Server(void);
+        Server(const ServerConfig &configs);
+        Server(const Server &other);
+        Server &operator=(const Server &other);
+        ~Server(void);
 
-        void run();
+        void run(void);
 
         //TODO: exception classes here
 };

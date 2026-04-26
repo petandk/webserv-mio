@@ -1,31 +1,55 @@
 #include "../inc/server/Server.hpp"
-# include <iostream>
+#include <iostream>
 
 Server::Server(void)
 {
-    std::cout << "Default server created" << std::endl;
+    #ifdef DEBUG
+        std::cout << "Default server created" << std::endl;
+    #endif
 }
 
-Server::Server(const std::vector<ServerConfig> &configs)
+Server::Server(const ServerConfig &configs):_config(configs)
 {
-    (void)configs;
-    std::cout << "Server created using config file"<< std::endl;
+    #ifdef DEBUG
+        std::cout << "Server created using config file" << std::endl;
+    #endif
 }
 
 Server::Server(const Server &other)
 {
     (void)other;
-    std::cout << "Server created as a copy" << std::endl;
+    #ifdef DEBUG
+        std::cout << "Server created as a copy" << std::endl;
+    #endif
 }
 
 Server &Server::operator=(const Server &other)
 {
     (void)other;
-    std::cout << "Server assigned as a copy" << std::endl;
+    #ifdef DEBUG
+        std::cout << "Server assigned as a copy" << std::endl;
+    #endif
     return (*this);
 }
 
 Server::~Server(void)
 {
-    std::cout << "Server destroyed" << std::endl;
+    cleanup();
+    #ifdef DEBUG
+        std::cout << "Server destroyed and resources cleaned!" << std::endl;
+    #endif
+}
+
+void Server::cleanup(void)
+{
+    for (size_t i = 0; i < this->_fds.size(); i++)
+    {
+        if (this->_fds[i].fd >= 0)
+            close(this->_fds[i].fd);
+    }
+    this->_fds.clear();
+    this->_clientBuffers.clear();
+    #ifdef DEBUG
+        std::cout << "\033[31mAll resources cleaned!\033[0m" << std::endl;
+    #endif
 }
