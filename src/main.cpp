@@ -1,5 +1,5 @@
-#include "../inc/ConfigParser.hpp"
-#include "../inc/Debug.hpp"
+#include "../inc/parser/ConfigParser.hpp"
+#include "../inc/utils/Debug.hpp"
 #include <iostream>
 
 int main(int argc, char *argv[])
@@ -23,7 +23,6 @@ int main(int argc, char *argv[])
     if (success) {
         printParsedConfig(parser);
     }
-    //getfilebuffer initialized but never used; maybe remove it??
     #endif
     /*
         !success because true = 1, false = 0

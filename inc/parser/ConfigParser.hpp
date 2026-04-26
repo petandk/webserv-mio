@@ -56,7 +56,7 @@ class ConfigParser{
         bool parseLocation(LocationConfig &location);
         bool parseReturn(LocationConfig &location);
         
-        const std::string   &getFileBuffer(void);
+        //const std::string   &getFileBuffer(void);
         const std::vector<ServerConfig> &getParsedServerConfigs(void) const;
 
         //exceptions

@@ -1,7 +1,7 @@
 #ifndef DEBUG_HPP
 # define DEBUG_HPP
 
-# include "ConfigParser.hpp"
+# include "../parser/ConfigParser.hpp"
 # include <map>
 # include <string>
 

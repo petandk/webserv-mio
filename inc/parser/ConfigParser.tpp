@@ -1,6 +1,7 @@
 #include <sstream>
 #include <climits>
-#include "../inc/Utils.hpp"
+#include "../utils/Utils.hpp"
+#include "ConfigParser.hpp"
 #include <iostream>
 
 template <typename T>

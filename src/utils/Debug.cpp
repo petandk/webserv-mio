@@ -1,4 +1,4 @@
-#include "../inc/Debug.hpp"
+#include "../inc/utils/Debug.hpp"
 
 void printParsedConfig(const ConfigParser& parser) {
     const std::vector<ServerConfig>& servers = parser.getParsedServerConfigs();

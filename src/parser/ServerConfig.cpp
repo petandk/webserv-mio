@@ -1,4 +1,4 @@
-#include "../inc/ServerConfig.hpp"
+#include "../inc/parser/ServerConfig.hpp"
 
 /*
     Vectors, strings and maps are initialized by default to empty.

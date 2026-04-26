@@ -6,7 +6,7 @@
 # include <string>
 # include <poll.h>
 
-# include "ServerConfig.hpp"
+# include "../parser/ServerConfig.hpp"
 
 class Request;
 

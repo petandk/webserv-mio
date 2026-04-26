@@ -1,5 +1,5 @@
-#include "../inc/ConfigParser.hpp"
-#include "../inc/Utils.hpp"
+#include "../inc/parser/ConfigParser.hpp"
+#include "../inc/utils/Utils.hpp"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -615,10 +615,12 @@ bool ConfigParser::parseReturn(LocationConfig &location)
     return (true);
 }
 
+/*
 const std::string   &ConfigParser::getFileBuffer(void)
 {
     return (this->_fileBuffer);
 }
+*/
 
 const std::vector<ServerConfig> &ConfigParser::getParsedServerConfigs(void) const
 {

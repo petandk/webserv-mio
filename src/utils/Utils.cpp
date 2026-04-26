@@ -1,5 +1,6 @@
 #include <string>
 #include <iostream>
+#include "../inc/utils/Utils.hpp"
 /*
     If not # found, then find returns std::string::npos wich is just max size for size_t
  */

@@ -1,4 +1,4 @@
-#include "../inc/LocationConfig.hpp"
+#include "../inc/parser/LocationConfig.hpp"
 
 /*
     Since we have a default.conf, we don't need default values here.
