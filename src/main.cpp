@@ -1,11 +1,10 @@
 #include "../inc/parser/ConfigParser.hpp"
 #include "../inc/utils/Debug.hpp"
+#include "../inc/server/Server.hpp"
 #include <iostream>
 
 int main(int argc, char *argv[])
 {
-    ConfigParser parser;
-
     if(argc > 2)
     {
         std::cout << "⚠️Wrong usage!⚠️" << std::endl;
@@ -13,17 +12,24 @@ int main(int argc, char *argv[])
         std::cout << "./webserv [configuration file]" << std::endl;
         return (1);
     }
-    bool success;
+    ConfigParser configs;
+    bool success = false;
     if(argc == 2)
-        success = parser.parseConfigFile(argv[1]);
+        success = configs.parseConfigFile(argv[1]);
     else
-        success = parser.parseConfigFile();
+        success = configs.parseConfigFile();
 
     #ifdef DEBUG
     if (success) {
-        printParsedConfig(parser);
+        printParsedConfig(configs);
     }
     #endif
+    if (success)
+    {
+        Server webserv(configs);
+        success = webserv.run();
+    }
+
     /*
         !success because true = 1, false = 0
         but return expects 0 for no error, anything else for error
