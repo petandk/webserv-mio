@@ -162,3 +162,36 @@ make re
 ---
 
 For more details, see the code and comments in the source files.
+
+---
+
+## Default Values Assigned by the Parser
+
+The configuration parser assigns default values to several directives if they are not specified in the configuration file. This ensures the server always has valid settings and simplifies configuration files. The inheritance rules are:
+
+- **Server-level defaults:** If a directive is missing in a `server` block, the parser assigns the default value shown below.
+- **Location-level inheritance:** If a `location` block omits `root` or `index`, it inherits the value from its parent `server` block. Other directives in `location` have their own defaults or remain unset unless specified.
+
+| Directive                | Context   | Default Value         | Inheritance/Notes                                  |
+|--------------------------|-----------|----------------------|----------------------------------------------------|
+| `host`                   | server    | `0.0.0.0`            | Used if not specified in server block              |
+| `listen` (port)          | server    | `8080`               | Used if not specified in server block              |
+| `root`                   | server    | `./var/www/html`     | Inherited by location if not set                   |
+| `index`                  | server    | `index.html`         | Inherited by location if not set                   |
+| `client_max_body_size`   | server    | `1048576` (1 MB)     | Used if not specified in server block              |
+| `server_name`            | server    | `localhost`          | Used if not specified in server block              |
+| `error_page`             | server    | *none*               | No default error pages                             |
+| `allowed_methods`        | location  | `GET`                | Only GET allowed if not specified                  |
+| `autoindex`              | location  | `off`                | Directory listing disabled by default              |
+| `upload_path`            | location  | *none*               | Uploads disabled unless specified                  |
+| `cgi_extension`          | location  | *none*               | CGI disabled unless specified                      |
+| `cgi_pass`               | location  | *none*               | CGI disabled unless specified                      |
+| `return` (redirect code) | location  | `0` (no redirect)    | No redirection unless specified                    |
+
+**Examples:**
+
+- If a `server` block does not specify `host`, it will listen on `0.0.0.0`.
+- If a `location` does not specify `root`, it will use the `root` from its parent `server`.
+- If `allowed_methods` is not set in a `location`, only `GET` will be allowed.
+
+**Note:** The parser ensures that every server and location has valid values for all required directives, either from the config file, by inheritance, or by default.

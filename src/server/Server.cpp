@@ -1,16 +1,20 @@
 #include "../inc/server/Server.hpp"
 #include <iostream>
 #include <sys/types.h> //System types (size_t, ssize_t...)
-#include <sys/socket.h> //socket(), bind(), listen, accept(), setsockopt()
+#include <sys/socket.h> //socket(), bind(), listen(), accept(), setsockopt(), sockaddr
 #include <netinet/in.h> // sockaddr_in, htons(), htonl()
 #include <fcntl.h> //To enable non-blocking mode fcntl() and O_NONBLOCK
 #include <cstring> // memset()
 #include <poll.h> //I/O multiplexing poll()
 #include <unistd.h> //close for fd
 
-bool setupSockets(void)
+bool Server::setupSockets(void)
 {
-    
+    //first we go over all servers
+    for (size_t i = 0; i < this->_allServers.size(); i++)
+    {
+        //now we have to go over all ports
+    }
 }
 
 bool Server::isListening(int fd)
@@ -70,7 +74,7 @@ Server::Server(void)
     #endif
 }
 
-Server::Server(const ConfigParser &configs):_allConfigs(configs.getParsedServerConfigs())
+Server::Server(const ConfigParser &configs):_allServers(configs.getParsedServerConfigs())
 {
     #ifdef DEBUG
         std::cout << "Server created using config file" << std::endl;
@@ -78,7 +82,7 @@ Server::Server(const ConfigParser &configs):_allConfigs(configs.getParsedServerC
 }
 
 Server::Server(const Server &other)
-    :_allConfigs(other._allConfigs),
+    :_allServers(other._allServers),
     _fds(other._fds),
     _listenFds(other._listenFds),
     _clientBuffers(other._clientBuffers)
@@ -92,7 +96,7 @@ Server &Server::operator=(const Server &other)
 {
     if (this != &other)
     {
-        _allConfigs = other._allConfigs;
+        _allServers = other._allServers;
         _fds = other._fds;
         _listenFds = other._listenFds;
         _clientBuffers = other._clientBuffers;

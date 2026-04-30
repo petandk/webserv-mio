@@ -277,8 +277,21 @@ bool ConfigParser::parseServerBlock(ServerConfig &server)
         }
     }
     // default values here:
-    if(server.getHost().empty())
+    if (server.getHost().empty())
         server.setHost("0.0.0.0");
+    if (server.getPorts().empty())
+    {
+        server.addPort(80);
+        server.addPort(8080);
+    }
+    if (server.getRoot().empty())
+        server.setRoot("./www");
+    if (server.getIndexFiles().empty())
+        server.addIndexFile("index.html");
+    if (server.getClientMaxBodySize() == 0)
+        server.setClientMaxBodySize(1048576); //1MB
+    if (server.getServerNames().empty())
+        server.addServerName("localhost");
     
     #ifdef DEBUG
         std::cout << "[DEBUG] Finished parsing server block. Checking for closing '}'..." << std::endl;
@@ -491,6 +504,15 @@ bool ConfigParser::parseLocationBlock(ServerConfig &server)
                     return (false);
         }
     }
+    //default values here:
+    if (location.getAllowedMethods().empty())
+        location.addAllowedMethod("GET");
+    if (location.getIndexFiles().empty())
+        location.addIndexFile(server.getIndexFiles().empty() ? "index.html" : server.getIndexFiles()[0]);
+    if (location.getRoot().empty())
+        location.setRoot(server.getRoot());
+    
+
     server.addLocation(location);
     #ifdef DEBUG
         std::cout << "[DEBUG] Location added to server" << std::endl;

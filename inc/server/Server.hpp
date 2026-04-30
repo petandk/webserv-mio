@@ -18,7 +18,7 @@ class Request;
 
 class Server {
     private:
-        std::vector<ServerConfig>   _allConfigs;
+        std::vector<ServerConfig>   _allServers;
         std::vector<struct pollfd>  _fds;
         std::map<int, std::string>  _clientBuffers;
         std::vector<int>            _listenFds;
