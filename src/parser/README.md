@@ -1,40 +1,66 @@
 # webserv
 
-## Configuration Parser Overview
+## Overview
+This project implements a high-performance web server in **C++98** with a configuration parser inspired by Nginx. The server is designed to be robust, validating all settings during the parsing phase to ensure stable execution.
 
-This project implements a web server in C++98 with a configuration parser inspired by Nginx. The parser reads configuration files, validates them, and builds the internal server and location configuration objects.
+---
 
-### How the Parser Works
-1. **Parameter conf file:** If no file is specified, `conf/Default.conf` is used.
-2. **Preprocessing:** Comments and extra whitespace are removed.
-3. **Tokenization:** The file is split into tokens (keywords, values, `{`, `}`, `;`).
-4. **Parsing:** Tokens are processed to build `ServerConfig` and `LocationConfig` objects.
-5. **Validation:** Syntax and value checks are performed. Errors stop the server with a clear message.
+## 🛠 Default Values & Inheritance
 
-### Example Configuration (`conf/Default.conf`)
+To simplify configuration, the parser assigns default values to several directives if they are not specified in the `.conf` file. 
+
+### ⚠️ Important: `host` vs `listen`
+In standard Nginx, the `listen` directive often combines both IP and Port (e.g., `listen 127.0.0.1:8080;`). In this project, for better clarity and parsing control, they have been **separated into two distinct directives**:
+*   **`host`**: Defines the network interface (IP address).
+*   **`listen`**: Defines the port number only.
+
+### Table of Defaults
+| Directive                | Context   | Default Value         | Inheritance/Notes                                  |
+|--------------------------|-----------|----------------------|----------------------------------------------------|
+| **`host`**               | server    | `0.0.0.0`            | Listens on all interfaces if not set               |
+| **`listen`**             | server    | `8080`               | Default port (Separated from host)                 |
+| `root`                   | server    | `./var/www/html`     | Inherited by location if not explicitly set        |
+| `index`                  | server    | `index.html`         | Inherited by location if not explicitly set        |
+| `client_max_body_size`   | server    | `1048576` (1 MB)     | Prevents oversized payload attacks                 |
+| `server_name`            | server    | `localhost`          | Primary server identifier                          |
+| `allowed_methods`        | location  | `GET`                | Restricted to GET by default for security          |
+| `autoindex`              | location  | `off`                | Directory listing is disabled by default           |
+| `return`                 | location  | `0`                  | No redirection unless specified                    |
+
+---
+
+## 📄 Configuration Example (`conf/Default.conf`)
+
+The server uses a block-based syntax. Note the independent definition of `host` and `listen`:
+
 ```nginx
 server {
     listen 8080;
     host 127.0.0.1;
     server_name localhost;
     client_max_body_size 1048576;
+
     error_page 404 /errors/404.html;
     error_page 500 /errors/500.html;
+
     location / {
         root ./var/www/html;
         index index.html;
         allowed_methods GET POST;
         autoindex off;
     }
+
     location /uploads {
         root ./var/www/uploads;
         allowed_methods GET POST DELETE;
         upload_path ./var/www/uploads;
         autoindex on;
     }
+
     location /forbidden {
         return 404;
     }
+
     location /cgi-bin {
         root ./var/www/cgi-bin;
         allowed_methods GET POST;
@@ -44,8 +70,42 @@ server {
 }
 ```
 
-### Example Output (Debug Mode)
-```
+---
+
+## 🚀 Build & Run Instructions
+
+### Compilation
+*   **Release mode:** `make`
+*   **Debug mode:** `make debug` (Enables verbose parsing logs and token traces)
+
+### Execution
+*   **Default:** `./webserver` (Uses `conf/Default.conf` automatically)
+*   **Custom:** `./webserver path/to/your_config.conf`
+
+### Cleanup
+*   `make clean`: Removes object files.
+*   `make fclean`: Removes object files and the executable.
+*   `make re`: Rebuilds the entire project from scratch.
+
+---
+
+## ⚙️ Technical Internals
+
+### How the Parser Works
+1.  **Preprocessing:** Strips comments (`#`) and normalizes whitespace for cleaner tokenization.
+2.  **Tokenization:** Splits the file into logical units: keywords, values, and control symbols (`{`, `}`, `;`).
+3.  **Parsing:** Implements a recursive descent-like approach to build `ServerConfig` and `LocationConfig` objects.
+4.  **Validation:** Performs strict checks on syntax, port ranges, and path accessibility. If an error is detected, the server prints a clear diagnostic message and aborts the startup.
+
+### Main Classes
+- **`ConfigParser`**: The core engine that handles file I/O, tokenization, and orchestration of the parsing logic.
+- **`ServerConfig`**: Container for server-level directives (host, port, error pages).
+- **`LocationConfig`**: Container for route-specific logic, including CGI, upload paths, and redirection codes.
+
+### Debug Mode Output
+When running in `make debug` mode, the parser provides a detailed, comprehensive trace of the internal state, tokenization, and final parsed objects:
+
+```text
 No config file specified, using default configuration.
 [DEBUG] Tokens after tokenization:
   [0]: 'server'
@@ -110,88 +170,5 @@ Error pages:
   Redirect URL: 
 ```
 
-### Main Classes
-- **ConfigParser:** Handles parsing, tokenization, and validation.
-- **ServerConfig:** Stores server-level configuration.
-- **LocationConfig:** Stores location-specific configuration.
-
-### Error Handling
-If the configuration file is missing, empty, or contains errors, the parser will print an error and the server will not start.
-
 ---
-
-## Build & Run Instructions
-
-### Compile (Release)
-```
-make
-```
-
-### Compile (Debug mode)
-```
-make debug
-```
-
-### Run with default configuration
-```
-./webserver
-```
-(This will use `conf/Default.conf` automatically if no argument is given.)
-
-### Run with a specific configuration file
-```
-./webserver conf/Testing.conf
-```
-(Replace `conf/Testing.conf` with your desired config file path.)
-
-### Clean object files
-```
-make clean
-```
-
-### Clean everything (objects + executable)
-```
-make fclean
-```
-
-### Rebuild everything from scratch
-```
-make re
-```
-
----
-
-For more details, see the code and comments in the source files.
-
----
-
-## Default Values Assigned by the Parser
-
-The configuration parser assigns default values to several directives if they are not specified in the configuration file. This ensures the server always has valid settings and simplifies configuration files. The inheritance rules are:
-
-- **Server-level defaults:** If a directive is missing in a `server` block, the parser assigns the default value shown below.
-- **Location-level inheritance:** If a `location` block omits `root` or `index`, it inherits the value from its parent `server` block. Other directives in `location` have their own defaults or remain unset unless specified.
-
-| Directive                | Context   | Default Value         | Inheritance/Notes                                  |
-|--------------------------|-----------|----------------------|----------------------------------------------------|
-| `host`                   | server    | `0.0.0.0`            | Used if not specified in server block              |
-| `listen` (port)          | server    | `8080`               | Used if not specified in server block              |
-| `root`                   | server    | `./var/www/html`     | Inherited by location if not set                   |
-| `index`                  | server    | `index.html`         | Inherited by location if not set                   |
-| `client_max_body_size`   | server    | `1048576` (1 MB)     | Used if not specified in server block              |
-| `server_name`            | server    | `localhost`          | Used if not specified in server block              |
-| `error_page`             | server    | *none*               | No default error pages                             |
-| `allowed_methods`        | location  | `GET`                | Only GET allowed if not specified                  |
-| `autoindex`              | location  | `off`                | Directory listing disabled by default              |
-| `upload_path`            | location  | *none*               | Uploads disabled unless specified                  |
-| `cgi_extension`          | location  | *none*               | CGI disabled unless specified                      |
-| `cgi_pass`               | location  | *none*               | CGI disabled unless specified                      |
-| `return` (redirect code) | location  | `0` (no redirect)    | No redirection unless specified                    |
-
-**Examples:**
-
-- If a `server` block does not specify `host`, it will listen on `0.0.0.0`.
-- If a `location` does not specify `root`, it will use the `root` from its parent `server`.
-- If `allowed_methods` is not set in a `location`, only `GET` will be allowed.
-
-**Note:** The parser ensures that every server and location has valid values for all required directives, either from the config file, by inheritance, or by default.
+*For further information, please refer to the source code comments in the `src/config/` directory.*
