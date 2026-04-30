@@ -7,13 +7,67 @@
 #include <cstring> // memset()
 #include <poll.h> //I/O multiplexing poll()
 #include <unistd.h> //close for fd
+#include <netdb.h> //getaddrinfo, freeaddrinfo
+#include <sstream> //to turn int to string
 
 bool Server::setupSockets(void)
 {
+    std::vector<std::string>    openedHosts;
+    std::vector<int>            openedPorts;
+
     //first we go over all servers
     for (size_t i = 0; i < this->_allServers.size(); i++)
     {
+        std::string host = this->_allServers[i].getHost();
+        const std::vector<int> &ports = this->_allServers[i].getPorts();
+
         //now we have to go over all ports
+        for (size_t p = 0; p < ports.size(); p++)
+        {
+            int port = ports[p];
+
+            bool isOpened = false;
+            for (size_t j = 0; j < openedPorts.size(); j++)
+            {
+                if (openedHosts[j] == host && openedPorts[j] == port)
+                {
+                    isOpened = true;
+                    break;
+                }
+            }
+            if (isOpened)
+                continue;
+            int listenFd = socket(AF_INET, SOCK_STREAM, 0);
+            if (listenFd < 0)
+            {
+                #ifdef DEBUG
+                    std::cout << "Socket creation failed." << std::endl;
+                #endif
+                return (false);
+            }
+            
+            int opt = 1;
+            if (setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+            {
+                #ifdef DEBUG
+                    std::cout << "Socket config failed." << std::endl;
+                #endif
+                close(listenFd);
+                return (false);
+            }
+            if (fcntl(listenFd, F_SETFL,O_NONBLOCK) < 0)
+            {
+                perror("fcntl");
+                close(listenFd);
+                return (false);
+            }
+            struct sockaddr_in addr;
+            memset(&addr, 0, sizeof(addr));
+            addr.sin_family = AF_INET;
+            addr.sin_port = htons(port);
+            addr.sin_addr.s_addr = inet_addr(host.c_str());
+        }
+
     }
 }
 
