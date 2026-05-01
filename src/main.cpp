@@ -2,9 +2,21 @@
 #include "../inc/utils/Debug.hpp"
 #include "../inc/server/Server.hpp"
 #include <iostream>
+#include <signal.h>
 
+void goodByeHandler(int)
+{
+    std::cout << std::endl << "\033[1;32m[webserv] Server stopped. Goodbye!\033[0m" << std::endl;
+}
+
+/*
+    valgrind will throw 'still reachable' leaks because the only way to kill
+    the server is Ctrl+C it. Which ends without cleaning up or
+    calling any class destructor.
+*/
 int main(int argc, char *argv[])
 {
+    signal(SIGINT, goodByeHandler);
     if(argc > 2)
     {
         std::cout << "⚠️Wrong usage!⚠️" << std::endl;

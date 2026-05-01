@@ -10,6 +10,27 @@
 #include <netdb.h> //getaddrinfo, freeaddrinfo
 #include <sstream> //to turn int to string
 
+void printServerInfo(std::string &host, int port, const std::vector<std::string> &names)
+{
+
+    std::cout << std::endl << "\033[96m--- [SERVER] listening on ---\033[0m" << std::endl
+    << "-IP/HOST: " << host << std::endl
+    << "-PORT: " << port << std::endl;
+    bool validName = false;
+            for(size_t n = 0; n < names.size(); n++)
+            {
+                if (!names[n].empty())
+                {
+                    if (!validName)
+                    {
+                        std::cout << "-SERVER NAME(S): " << std::endl;
+                        validName = true;
+                    }
+                    std::cout << "\t" << names[n] << std::endl;
+                }
+            }
+}
+
 bool Server::setupSockets(void)
 {
     std::vector<std::string>    openedHosts;
@@ -31,7 +52,7 @@ bool Server::setupSockets(void)
             {
                 if (openedHosts[j] == host && openedPorts[j] == port)
                 {
-                    isOpened = true;
+                     isOpened = true;
                     break;
                 }
             }
@@ -40,9 +61,7 @@ bool Server::setupSockets(void)
             int listenFd = socket(AF_INET, SOCK_STREAM, 0);
             if (listenFd < 0)
             {
-                #ifdef DEBUG
-                    std::cout << "Socket creation failed." << std::endl;
-                #endif
+                std::cout << "\033[1;31m[ERROR] Socket creation failed.\033[0m" << std::endl;
                 return (false);
             }
             
@@ -50,25 +69,86 @@ bool Server::setupSockets(void)
             if (setsockopt(listenFd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
             {
                 #ifdef DEBUG
-                    std::cout << "Socket config failed." << std::endl;
+                    std::cout << "[DEBUG-SERVER] Socket config failed." << std::endl;
                 #endif
                 close(listenFd);
                 return (false);
             }
             if (fcntl(listenFd, F_SETFL,O_NONBLOCK) < 0)
             {
-                perror("fcntl");
+                std::cout << "\033[1;31m[ERROR] fcntl failed to set NONBLOCK.\033[0m" << std::endl;
                 close(listenFd);
                 return (false);
             }
-            struct sockaddr_in addr;
-            memset(&addr, 0, sizeof(addr));
-            addr.sin_family = AF_INET;
-            addr.sin_port = htons(port);
-            addr.sin_addr.s_addr = inet_addr(host.c_str());
+            struct addrinfo hints, *res;
+            memset(&hints, 0, sizeof(hints));
+            hints.ai_family = AF_INET;
+            hints.ai_socktype  = SOCK_STREAM;
+            hints.ai_flags = AI_PASSIVE;
+
+            std::stringstream ss;
+            ss << port;
+            std::string portStr = ss.str();
+
+            if (getaddrinfo(host.c_str(), portStr.c_str(), &hints, &res) != 0)
+            {
+                std::cout << "\033[1;31m[ERROR] getaddrinfo failed for host '" << host << "' and port '" << port << "'.\033[0m" << std::endl;
+                close(listenFd);
+                return (false);
+            }
+
+            if (bind(listenFd, res->ai_addr, res->ai_addrlen) < 0)
+            {
+                std::cout << "\033[1;31m[ERROR] Port " << port << " on host '" << host
+                << "' is already in use or cannot be bound.\n\tMake sure no other server is running on this port and que la IP existe.\033[0m" << std::endl;
+                freeaddrinfo(res);
+                close(listenFd);
+                return (false);
+            }
+
+            freeaddrinfo(res);
+
+            if (listen(listenFd, SOMAXCONN) < 0)
+            {
+                std::cout << "\033[1;31m[ERROR] listen() failed.\033[0m" << std::endl;
+                close(listenFd);
+                return (false);
+            }
+
+            struct pollfd pfd;
+            pfd.fd = listenFd;
+            pfd.events = POLLIN;
+            pfd.revents = 0;
+            this->_fds.push_back(pfd);
+            this->_listenFds.push_back(listenFd);
+
+            openedHosts.push_back(host);
+            openedPorts.push_back(port);
+
+            const std::vector<std::string> &names = this->_allServers[i].getServerNames();
+            printServerInfo(host, port, names);
+            
         }
 
     }
+    return (!this->_listenFds.empty()); 
+}
+
+bool Server::acceptNewConnection(void)
+{
+    return (true);
+}
+
+bool Server::readFromClient(int fd)
+{
+    (void)fd;
+    return (true);
+}
+
+bool Server::sendToClient(int fd)
+{
+    (void)fd;
+    return (true);
 }
 
 bool Server::isListening(int fd)
@@ -138,8 +218,9 @@ Server::Server(const ConfigParser &configs):_allServers(configs.getParsedServerC
 Server::Server(const Server &other)
     :_allServers(other._allServers),
     _fds(other._fds),
-    _listenFds(other._listenFds),
-    _clientBuffers(other._clientBuffers)
+    _clientBuffers(other._clientBuffers),
+    _listenFds(other._listenFds)
+
 {
     #ifdef DEBUG
         std::cout << "Server created as a copy" << std::endl;
@@ -165,7 +246,7 @@ Server::~Server(void)
 {
     cleanup();
     #ifdef DEBUG
-        std::cout << "Server destroyed and resources cleaned!" << std::endl;
+        std::cout << "\033[1;32mServer successfully destroyed!\033[0m" << std::endl;
     #endif
 }
 

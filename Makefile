@@ -78,8 +78,9 @@ run: all
 	@echo "\033[0m"
 	./$(NAME)
 
-debug: CFLAGS += $(DEBUG_FLAGS)
-debug: fclean all
+debug:
+	$(MAKE) --no-print-directory fclean
+	$(MAKE) --no-print-directory all CFLAGS="$(CFLAGS) $(DEBUG_FLAGS)"
 	@echo "\033[1;31m"
 	@echo "==================================================="
 	@echo "\t🐛 DEBUG MODE ENABLED 🐛"
