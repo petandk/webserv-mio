@@ -9,6 +9,7 @@
 #include <unistd.h> //close for fd
 #include <netdb.h> //getaddrinfo, freeaddrinfo
 #include <sstream> //to turn int to string
+#include <arpa/inet.h>> //for inet_ntoa
 
 void printServerInfo(std::string &host, int port, const std::vector<std::string> &names)
 {
@@ -107,7 +108,7 @@ bool Server::setupSockets(void)
             }
 
             freeaddrinfo(res);
-
+                //SOMAXCONN is a macro that defines max pending connections queue for a listening socket. (usually 128 on linux)
             if (listen(listenFd, SOMAXCONN) < 0)
             {
                 std::cout << "\033[1;31m[ERROR] listen() failed.\033[0m" << std::endl;
@@ -127,21 +128,120 @@ bool Server::setupSockets(void)
 
             const std::vector<std::string> &names = this->_allServers[i].getServerNames();
             printServerInfo(host, port, names);
-            
         }
 
     }
     return (!this->_listenFds.empty()); 
 }
 
-bool Server::acceptNewConnection(void)
+bool Server::acceptNewConnection(int fd)
 {
+
+    struct sockaddr_in clientAddr;
+    socklen_t clientLen = sizeof(clientAddr);
+    int clientFd = accept(fd, (struct sockaddr*)&clientAddr, &clientLen);
+    const ServerConfig *config = NULL;
+
+    if (clientFd < 0)
+    {
+        std::cout << "\033[1;31m[ERROR]  accept() failed. \033[0m" << std::endl;
+        return (false);
+    }
+    if (fcntl(clientFd, F_SETFL, O_NONBLOCK) < 0)
+    {
+        std::cout << "\033[1;31m[ERROR]  New connection fcntl() failed to set O_NONBLOCK. \033[0m" << std::endl;
+        close(clientFd);
+        return (false);
+    }
+    for (size_t i = 0; i < this->_listenFds.size(); i++)
+    {
+        if (this->_listenFds[i] == fd)
+        {
+            config = &this->_allServers[i];
+            break;
+        }
+    }
+    if (config)
+        this->_fdToServerConfig[clientFd] = config;
+    else
+    {
+        std::cout << "\033[1;31m[ERROR] No ServerConfig found for listening fd " << fd << ". Closing client.\033[0m" << std::endl;
+        close(clientFd);
+        return false;
+    }
+
+    struct pollfd pfd;
+    pfd.fd = clientFd;
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+    this->_fds.push_back(pfd);
+
+    this->_clientBuffers[clientFd] = "";
+    this->_lastActivity[clientFd] = time(NULL);
+
+    /*
+        OS stores IP as a huge unsigned int,
+        inet_ntoa convers it to readeable format X.X.X.X
+        
+        Internet reverses bits to transfer data, so
+        ntohs has to reverse them again to be printable
+        Ex: port 80 gets stored as hex 00 50; but
+        if you try to print it it will reverse them and 
+        print 50 00. 
+        So 80 becomes 20480.
+    */
+    std::cout << "\033[92m-New client-\nfd: " << clientFd << std::endl
+                << "\tIP:" << inet_ntoa(clientAddr.sin_addr) << std::endl
+                << "\tPORT: " << ntohs(clientAddr.sin_port) << "\033[0m" << std::endl;
+
     return (true);
 }
 
+/*
+    I need to get the client_max_body_size from the .conf file.
+    so I needed to somehow map a fd to a ServerConfig, that way
+    with this->_fdToServerConfig[clientFd] = config;
+    Each client knows what is its config and I can use getClientMaxBodySize();
+*/
 bool Server::readFromClient(int fd)
 {
-    (void)fd;
+    char buffer[READ_BUFFER];
+    std::map<int, const ServerConfig *>::iterator it = this->_fdToServerConfig.find(fd);
+    if (it == this->_fdToServerConfig.end())
+        return (false);
+    
+    ssize_t bytesRead = recv(fd, buffer, sizeof(buffer) - 1, 0);
+    if (bytesRead < 0)
+    {
+        /*
+            Since we set the O_NONBLOCK, 
+            EWOULDBLOCK / EAGAIN: "No data available right now. Try again later."
+            return true because is not a error, just nothing to say.
+        */
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return (true);
+        std::cout << "\033[1;31m[ERROR] recv() failed with fd: " << fd << "\033[0m" << std::endl;
+        return (false);
+    }
+    else if (bytesRead == 0)
+    {
+        std::cout << "\033[93m[INFO] Conection closed with fd: " << fd << ")\033[0m" << std::endl;
+        return false;
+    }
+    size_t currentSize = this->_clientBuffers[fd].size();
+    size_t maxBody = it->second->getClientMaxBodySize();
+    if (currentSize + bytesRead > maxBody)
+    {
+        std::cout << "\033[1;31m[ERROR] Request bigger than client_max_body_size ("
+                    << maxBody << " bytes) with fd: " << fd << "\033[0m" << std::endl; 
+        // error 413 here?
+        return (false);
+    }
+    buffer[bytesRead] = '\0';
+    this->_clientBuffers[fd].append(buffer, bytesRead);
+    #ifdef DEBUG
+        std::cout << "[DEBUG] Receibed" << bytesRead << "bytes from fd " << fd << std:endl;
+    #endif
     return (true);
 }
 
@@ -176,12 +276,14 @@ void Server::kickClient(int fd)
     {
         if (this->_fds[i].fd == fd)
         {
-            this->_fds.erase(_fds.begin() + i);
+            this->_fds.erase(_fds.begin() + i); // erase needs a iterator, so begin creates the iterator at 0, then we add 'i' so we erase the right one
             break;
         }
     }
     this->_clientBuffers.erase(fd);
     this->_lastActivity.erase(fd);
+    this->_fdToServerConfig.erase(fd);
+    this->_clientResponses.erase(fd);
     #ifdef DEBUG
         std::cout << "[DEBUG] client with fd '" << fd << "' was kicked." << std::endl;
     #endif
@@ -219,7 +321,9 @@ Server::Server(const Server &other)
     :_allServers(other._allServers),
     _fds(other._fds),
     _clientBuffers(other._clientBuffers),
-    _listenFds(other._listenFds)
+    _listenFds(other._listenFds),
+    _fdToServerConfig(other._fdToServerConfig),
+    _clientResponses(other._clientResponses)
 
 {
     #ifdef DEBUG
@@ -233,8 +337,9 @@ Server &Server::operator=(const Server &other)
     {
         _allServers = other._allServers;
         _fds = other._fds;
-        _listenFds = other._listenFds;
         _clientBuffers = other._clientBuffers;
+        _listenFds = other._listenFds;
+        _
     }
     #ifdef DEBUG
         std::cout << "Server assigned as a copy" << std::endl;
@@ -286,11 +391,21 @@ bool Server::run(void)
             
             if(isListening(fd))
             {
-                if (!acceptNewConnection())
+                if (!acceptNewConnection(fd))
                     activeServer = false;
                 continue;
             }
-            // POLLRDHUP is kind of new and linux-specific so need to be protected 
+            /*
+                POLLRDHUP is kind of new and linux-specific so need to be protected
+                POLLIN - there's data waiting to be read.
+                POLLPRI - there's urgent data waiting to be read.
+                POLLOUT - we can write.
+                POLLHUP - client disconnected or connection lost
+                POLLERR - socket is broken
+                POLLNVAL - invalid fd, probably closed but not removed from
+                            _fds vector. So poll tried to check a closed fd
+                POLLRDHUP - its like a nice goodbye. The client finished "talking" and left.
+            */
             # ifdef POLLRDHUP
                 if (_fds[i].revents & (POLLERR | POLLHUP | POLLNVAL | POLLRDHUP))
             # else
@@ -308,7 +423,13 @@ bool Server::run(void)
                     continue;
                 }
                 else
+                {
                     this->_lastActivity[fd] = time(NULL);
+                    if (isCompleteRequest(this->_clientBuffers[fd]))//aquimequedo
+                    {
+                        this->_clientResponses[fd] = handleRequest(_clientBuffers[fd]);
+                    }
+                }
             }
             if (_fds[i].revents & POLLOUT)
             {
