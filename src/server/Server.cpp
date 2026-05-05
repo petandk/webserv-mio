@@ -162,7 +162,7 @@ bool Server::acceptNewConnection(int fd)
         }
     }
     if (config)
-        this->_fdToServerConfig[clientFd] = config;
+        this->_clients[clientFd] = Client(clientFd, config);
     else
     {
         std::cout << "\033[1;31m[ERROR] No ServerConfig found for listening fd " << fd << ". Closing client.\033[0m" << std::endl;
@@ -175,9 +175,6 @@ bool Server::acceptNewConnection(int fd)
     pfd.events = POLLIN;
     pfd.revents = 0;
     this->_fds.push_back(pfd);
-
-    this->_clientBuffers[clientFd] = "";
-    this->_lastActivity[clientFd] = time(NULL);
 
     /*
         OS stores IP as a huge unsigned int,
@@ -206,43 +203,10 @@ bool Server::acceptNewConnection(int fd)
 bool Server::readFromClient(int fd)
 {
     char buffer[READ_BUFFER];
-    std::map<int, const ServerConfig *>::iterator it = this->_fdToServerConfig.find(fd);
-    if (it == this->_fdToServerConfig.end())
+   std::map<int, Client>::iterator it = this->_clients.find(fd);
+    if (it == this->_clients.end())
         return (false);
-    
-    ssize_t bytesRead = recv(fd, buffer, sizeof(buffer) - 1, 0);
-    if (bytesRead < 0)
-    {
-        /*
-            Since we set the O_NONBLOCK, 
-            EWOULDBLOCK / EAGAIN: "No data available right now. Try again later."
-            return true because is not a error, just nothing to say.
-        */
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return (true);
-        std::cout << "\033[1;31m[ERROR] recv() failed with fd: " << fd << "\033[0m" << std::endl;
-        return (false);
-    }
-    else if (bytesRead == 0)
-    {
-        std::cout << "\033[93m[INFO] Conection closed with fd: " << fd << ")\033[0m" << std::endl;
-        return false;
-    }
-    size_t currentSize = this->_clientBuffers[fd].size();
-    size_t maxBody = it->second->getClientMaxBodySize();
-    if (currentSize + bytesRead > maxBody)
-    {
-        std::cout << "\033[1;31m[ERROR] Request bigger than client_max_body_size ("
-                    << maxBody << " bytes) with fd: " << fd << "\033[0m" << std::endl; 
-        // error 413 here?
-        return (false);
-    }
-    buffer[bytesRead] = '\0';
-    this->_clientBuffers[fd].append(buffer, bytesRead);
-    #ifdef DEBUG
-        std::cout << "[DEBUG] Receibed" << bytesRead << "bytes from fd " << fd << std:endl;
-    #endif
-    return (true);
+    return (it->second.readFromSocket());
 }
 
 bool Server::sendToClient(int fd)
@@ -263,9 +227,9 @@ bool Server::isListening(int fd)
 
 std::string Server::getRawRequest(int client_fd) const
 {
-    std::map<int, std::string>::const_iterator it = this->_clientBuffers.find(client_fd);
-    if (it != this->_clientBuffers.end())
-        return (it->second);
+    std::map<int, Client>::const_iterator it = this->_clients.find(client_fd);
+    if (it != this->_clients.end())
+        return (it->second.getRequestBuffer());
     return ("");
 }
 
@@ -280,10 +244,7 @@ void Server::kickClient(int fd)
             break;
         }
     }
-    this->_clientBuffers.erase(fd);
-    this->_lastActivity.erase(fd);
-    this->_fdToServerConfig.erase(fd);
-    this->_clientResponses.erase(fd);
+    this->_clients.erase(fd);
     #ifdef DEBUG
         std::cout << "[DEBUG] client with fd '" << fd << "' was kicked." << std::endl;
     #endif
@@ -297,7 +258,6 @@ void Server::cleanup(void)
             close(this->_fds[i].fd);
     }
     this->_fds.clear();
-    this->_clientBuffers.clear();
     #ifdef DEBUG
         std::cout << "\033[31mAll resources cleaned!\033[0m" << std::endl;
     #endif
@@ -320,11 +280,7 @@ Server::Server(const ConfigParser &configs):_allServers(configs.getParsedServerC
 Server::Server(const Server &other)
     :_allServers(other._allServers),
     _fds(other._fds),
-    _clientBuffers(other._clientBuffers),
-    _listenFds(other._listenFds),
-    _fdToServerConfig(other._fdToServerConfig),
-    _clientResponses(other._clientResponses)
-
+    _listenFds(other._listenFds)
 {
     #ifdef DEBUG
         std::cout << "Server created as a copy" << std::endl;
@@ -337,9 +293,7 @@ Server &Server::operator=(const Server &other)
     {
         _allServers = other._allServers;
         _fds = other._fds;
-        _clientBuffers = other._clientBuffers;
         _listenFds = other._listenFds;
-        _
     }
     #ifdef DEBUG
         std::cout << "Server assigned as a copy" << std::endl;
@@ -363,13 +317,12 @@ bool Server::run(void)
     bool activeServer = true;
     while (activeServer)
     {
-        time_t now = time(NULL);
-        for (std::map<int, time_t>::iterator it = this->_lastActivity.begin(); it != this->_lastActivity.end(); )
+        for (std::map<int, Client>::iterator it = this->_clients.begin(); it != this->_clients.end(); )
         {
-            if (now - it->second > IDLE_TIMEOUT / 1000)
+            if (it->second.hasTimedOut(IDLE_TIMEOUT / 1000))
             {
                 kickClient(it->first);
-                this->_lastActivity.erase(it++);
+                this->_clients.erase(it);
             }
             else
                 it++;
@@ -424,10 +377,11 @@ bool Server::run(void)
                 }
                 else
                 {
-                    this->_lastActivity[fd] = time(NULL);
-                    if (isCompleteRequest(this->_clientBuffers[fd]))//aquimequedo
+                    this->_clients[fd].updateActivity();
+                    if (isCompleteRequest(this->_clients[fd].getRequestBuffer()))
                     {
-                        this->_clientResponses[fd] = handleRequest(_clientBuffers[fd]);
+                        std::string response = //llamada a httpHandler 
+                        this->_clients[fd].setResponse(response);
                     }
                 }
             }
@@ -439,7 +393,7 @@ bool Server::run(void)
                     continue;
                 }
                 else
-                    this->_lastActivity[fd] = time(NULL);
+                    this->_clients[fd].updateActivity();
             }
         }
     }
