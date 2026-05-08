@@ -10,7 +10,7 @@ class Client {
         int                 _fd;
         time_t              _lastActivity;
         std::string         _requestBuffer;
-        std::string         _responseBuffer;
+        int                 _responseFd;
         const ServerConfig *_config;
 
     public:
@@ -24,13 +24,14 @@ class Client {
         bool                hasTimedOut(int timeoutLimit) const;
         void                appendRequest(const char *data, ssize_t size);
         
-        void                setResponse(const std::string &response);
-        void                eraseSentResponse(size_t bytesSent);
+        void                setResponseFd(int fd);
+        bool                hasResponse(void) const;
+        
         void                clearRequest(void);
 
         int                 getFd(void) const;
         const std::string   &getRequestBuffer(void) const;
-        const std::string   &getResponseBuffer(void) const;
+        int                 getResponseFd(void) const;
         const ServerConfig  *getConfig(void) const;
 };
 

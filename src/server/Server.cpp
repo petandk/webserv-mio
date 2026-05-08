@@ -206,12 +206,100 @@ bool Server::readFromClient(int fd)
    std::map<int, Client>::iterator it = this->_clients.find(fd);
     if (it == this->_clients.end())
         return (false);
-    return (it->second.readFromSocket());
+    Client &client = it->second;
+
+    ssize_t bytesRead = recv(fd, buffer, sizeof(buffer) - 1, 0);
+
+    if (bytesRead < 0)
+    {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return (true);
+        std::cout << "\033[1;31m[ERROR] recv() failed for fd: " << fd << "\033[0m" << std::endl;
+        return (false);
+    }
+
+    if (bytesRead == 0)
+    {
+        std::cout << "\033[93m[INFO] Connection closed with fd: " << fd << "\033[0m" << std::endl;
+        return (false);
+    }
+    
+    buffer[bytesRead] = '\0';
+    client.appendRequest(buffer, bytesRead);
+    #ifdef DEBUG
+        std::cout << "[DEBUG] Received " << bytesRead << " bytes from fd " << fd << std::endl;
+    #endif
+
+    if (client.getRequestBuffer().find("\r\n\r\n") != std::string::npos)
+    {
+        #ifdef DEBUG
+            std::cout << "[DEBUG] Request complete for fd " << fd << std::endl;
+        #endif
+
+        // httphandler calls here
+        //HttpHandler handler;
+        //handler.handleRequest(client);
+
+        if (client.hasResponse())
+            setClientEvents(fd, POLLOUT);
+    }
+    return (true);
 }
 
+// fd should contain everything so just send it to client
 bool Server::sendToClient(int fd)
 {
-    (void)fd;
+    std::map<int, Client>::iterator it = this->_clients.find(fd);
+    if (it == this->_clients.end())
+        return (false);
+    Client &client = it->second;
+    int bodyFd = client.getResponseFd();
+    if (bodyFd < 0)
+        return (true); //nothing to send
+    char buffer[READ_BUFFER];
+    ssize_t bytesRead = read(bodyFd, buffer, sizeof(buffer));
+
+    if (bytesRead < 0)
+    {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return (true); //retry
+        
+        std::cout << "\033[1;31m[ERROR] read() failed on fd " 
+                  << bodyFd << ": " << strerror(errno) << "\033[0m" << std::endl;
+        return (false);
+    }
+    if (bytesRead == 0)
+    {
+        close(bodyFd);
+        client.setResponseFd(-1);
+        client.clearRequest();
+        #ifdef DEBUG
+            std::cout << "[DEBUG] Response fully sent to fd " << fd << std::endl;
+        #endif
+        //keep-alive
+        setClientEvents(fd, POLLIN);
+        return (true);
+    }
+    ssize_t totalSent = 0;
+    while (totalSent < bytesRead)
+    {
+        ssize_t sent = send(fd, buffer+totalSent, bytesRead - totalSent, MSG_DONTWAIT);
+        if (sent < 0)
+        {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+                return (true);
+
+            std::cout << "\033[1;31m[ERROR] send() failed for fd: " 
+                      << fd << "\033[0m" << std::endl;
+            return (false);
+        }
+        totalSent += sent;
+    }
+
+    #ifdef DEBUG
+        std::cout << "[DEBUG] Sent " << totalSent << " bytes to fd " << fd << std::endl;
+    #endif
+
     return (true);
 }
 
@@ -235,6 +323,12 @@ std::string Server::getRawRequest(int client_fd) const
 
 void Server::kickClient(int fd)
 {
+    std::map<int, Client>::iterator it = this->_clients.find(fd);
+    if (it != this->_clients.end())
+    {
+        if (it->second.hasResponse())
+            close(it->second.getResponseFd());
+    }
     close(fd);
     for (size_t i = 0; i < this->_fds.size(); i++)
     {
@@ -248,6 +342,33 @@ void Server::kickClient(int fd)
     #ifdef DEBUG
         std::cout << "[DEBUG] client with fd '" << fd << "' was kicked." << std::endl;
     #endif
+}
+
+void Server::setClientEvents(int fd, short events)
+{
+    for (size_t i = 0; i < this->_fds.size(); i++)
+    {
+        if (this->_fds[i].fd == fd)
+        {
+            this->_fds[i].events = events;
+            break;
+        }
+    }
+}
+
+void Server::checkTimeouts(void)
+{
+    for (std::map<int, Client>::iterator it = this->_clients.begin();
+        it != this->_clients.end();)
+    {
+        if(it->second.hasTimedOut(IDLE_TIMEOUT / 1000))
+        {
+            kickClient(it->first);
+            this->_clients.erase(it++);
+        }
+        else
+            ++it;
+    }
 }
 
 void Server::cleanup(void)
@@ -317,16 +438,7 @@ bool Server::run(void)
     bool activeServer = true;
     while (activeServer)
     {
-        for (std::map<int, Client>::iterator it = this->_clients.begin(); it != this->_clients.end(); )
-        {
-            if (it->second.hasTimedOut(IDLE_TIMEOUT / 1000))
-            {
-                kickClient(it->first);
-                this->_clients.erase(it);
-            }
-            else
-                it++;
-        }
+        checkTimeouts();
         int pollRes = poll(&this->_fds[0], this->_fds.size(), POLL_TIMEOUT);
         if (pollRes < 0)
         {
@@ -371,19 +483,9 @@ bool Server::run(void)
             if (_fds[i].revents & POLLIN)
             {
                 if (!readFromClient(fd))
-                {
                     kickClient(fd);
-                    continue;
-                }
                 else
-                {
                     this->_clients[fd].updateActivity();
-                    if (isCompleteRequest(this->_clients[fd].getRequestBuffer()))
-                    {
-                        std::string response = //llamada a httpHandler 
-                        this->_clients[fd].setResponse(response);
-                    }
-                }
             }
             if (_fds[i].revents & POLLOUT)
             {

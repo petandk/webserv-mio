@@ -36,6 +36,8 @@ class Server {
         std::string  getRawRequest(int client_fd) const; //Returns the content of _clientBuffers[client_fd]
 
         void kickClient(int fd);
+        void setClientEvents(int fd, short events);
+        void checkTimeouts(void);
         void cleanup(void);
         
     public:
@@ -46,8 +48,6 @@ class Server {
         ~Server(void);
 
         bool run(void);
-
-        //TODO: exception classes here
 };
 
 #endif

@@ -1,14 +1,18 @@
 #include "../../inc/server/Client.hpp"
+#include <iostream>
+#include <unistd.h>
 
 Client::Client(void)
     :_fd(-1),
     _lastActivity(time(NULL)),
+    _responseFd(-1),
     _config(NULL)
 {}
 
 Client::Client(int fd, const ServerConfig *config)
     :_fd(fd),
     _lastActivity(time(NULL)),
+    _responseFd(-1),
     _config(config)
 {}
 
@@ -16,7 +20,7 @@ Client::Client(const Client &other)
     :_fd(other._fd),
     _lastActivity(other._lastActivity),
     _requestBuffer(other._requestBuffer),
-    _responseBuffer(other._responseBuffer),
+    _responseFd(other._responseFd),
     _config(other._config)
 {}
 
@@ -27,13 +31,17 @@ Client &Client::operator=(const Client &other)
         this->_fd = other._fd;
         this->_lastActivity = other._lastActivity;
         this->_requestBuffer = other._requestBuffer;
-        this->_responseBuffer = other._responseBuffer;
+        this->_responseFd = other._responseFd;
         this->_config = other._config;
     }
+    return (*this);
 }
 
 Client::~Client(void)
-{}
+{
+    if (this->hasResponse())
+        close(this->_responseFd);
+}
 
 void Client::updateActivity(void)
 {
@@ -50,14 +58,14 @@ void Client::appendRequest(const char *data, ssize_t size)
     this->_requestBuffer.append(data, size);
 }
 
-void Client::setResponse(const std::string &response)
+void Client::setResponseFd(int fd)
 {
-    this->_responseBuffer = response;
+    this->_responseFd = fd;
 }
 
-void Client::eraseSentResponse(size_t bytesSent)
+bool Client::hasResponse(void) const
 {
-    this->_responseBuffer.erase(0, bytesSent);
+    return (this->_responseFd >= 0);
 }
 
 void Client::clearRequest(void)
@@ -75,9 +83,9 @@ const std::string &Client::getRequestBuffer(void) const
     return (this->_requestBuffer);
 }
 
-const std::string &Client::getResponseBuffer(void) const
+int Client::getResponseFd(void) const
 {
-    return (this->_responseBuffer);
+   return (this->_responseFd);
 }
 
 const ServerConfig *Client::getConfig(void) const
