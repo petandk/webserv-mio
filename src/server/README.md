@@ -9,8 +9,8 @@ This module implements the **core network engine** of the web server. It is resp
 
 ### Core Components
 - **`Server`**: The main class that owns the event loop, socket management, and client lifecycle.
-- **`Client`**: Represents a single TCP connection with its state, request buffer, and response file descriptor.
-- **`HttpHandler`**: External component (implemented by my teammate) that processes HTTP requests and generates responses.
+- **`Client`**: Represents a single TCP connection with its request buffer and response file descriptor.
+- **`HttpHandler`**: External component (implemented by your teammate) that processes HTTP requests and generates responses.
 
 ### Data Flow Diagram
 ```
@@ -63,13 +63,15 @@ The Server module communicates with the HTTP handler through a **minimal interfa
 | `setResponseFd(fd)` | Sets the FD for response (called by HttpHandler) |
 | `hasResponse()` | Returns `true` if `_responseFd >= 0` |
 | `clearRequest()` | Clears request buffer (for keep-alive) |
+| `getResponseFd()` | Returns the FD to read response from |
+| `getRequestBuffer()` | Returns the accumulated request data |
 
 ### Server Class
 
 #### Member Variables
 | Variable | Type | Description |
 |----------|------|-------------|
-| `_allServers` | `std::vector<ServerConfig>` | Parsed server configurations |
+| `_allServers` | `std::vector<ServerConfig>` | Parsed server configurations from config parser |
 | `_fds` | `std::vector<struct pollfd>` | File descriptors monitored by poll() |
 | `_listenFds` | `std::vector<int>` | Listening socket FDs |
 | `_clients` | `std::map<int, Client>` | Active client connections (fd → Client) |
@@ -77,12 +79,15 @@ The Server module communicates with the HTTP handler through a **minimal interfa
 #### Main Methods
 | Method | Description |
 |--------|-------------|
-| `setupSockets()` | Creates and binds listening sockets |
-| `acceptNewConnection(fd)` | Accepts new TCP connection |
-| `readFromClient(fd)` | Reads data, detects complete requests |
-| `sendToClient(fd)` | Sends response from FD to socket |
-| `kickClient(fd)` | Removes client and cleans resources |
-| `checkTimeouts()` | Removes idle clients |
+| `setupSockets()` | Creates, binds and listens on all configured sockets |
+| `acceptNewConnection(fd)` | Accepts new TCP connection on listening fd |
+| `readFromClient(fd)` | Reads data from socket, detects complete requests |
+| `sendToClient(fd)` | Sends response from FD to client socket |
+| `isListening(fd)` | Checks if fd is a listening socket |
+| `kickClient(fd)` | Removes client, closes fds and cleans resources |
+| `setClientEvents(fd, events)` | Updates poll events for a client fd |
+| `checkTimeouts()` | Removes clients that exceeded IDLE_TIMEOUT |
+| `cleanup()` | Closes all fds and clears vectors |
 | `run()` | Main event loop |
 
 ---
@@ -92,7 +97,7 @@ The Server module communicates with the HTTP handler through a **minimal interfa
 ### The poll() Cycle
 ```
 1. checkTimeouts() - Remove stale connections
-2. poll(fds, nfds, TIMEOUT) - Wait for events
+2. poll(fds, nfds, POLL_TIMEOUT) - Wait for events
 3. For each fd with events:
    ├── Listening FD → acceptNewConnection()
    ├── Error/EOF   → kickClient()
@@ -100,12 +105,33 @@ The Server module communicates with the HTTP handler through a **minimal interfa
    └── POLLOUT     → sendToClient()
 ```
 
-### State Machine (implicit in Client)
+### Client Lifecycle
 ```
-ACCEPTED → LEYENDO_PETICION → \r\n\r\n detected
-           → HttpHandler processes → POLLOUT set
-           → ENVIANDO_RESPUESTA → response complete
-           → LEYENDO_PETICION (keep-alive) or CLOSED
+Client created on accept()
+    │
+    ▼
+readFromClient() accumulates data in _requestBuffer
+    │
+    ▼
+\r\n\r\n detected → Request is complete
+    │
+    ▼
+HttpHandler::handleRequest(client) is called
+    │
+    ▼
+handler calls client.setResponseFd(fd) with response
+    │
+    ▼
+if client.hasResponse() → events changed to POLLOUT
+    │
+    ▼
+sendToClient() reads from responseFd and sends to socket
+    │
+    ▼
+When read() returns 0 → Response fully sent
+    │
+    ├── Keep-alive → clearRequest(), events back to POLLIN
+    └── Close      → kickClient()
 ```
 
 ### Event Transition Examples
@@ -125,22 +151,10 @@ setClientEvents(fd, POLLIN);   // Switch back to read mode (keep-alive)
 | Constant | Value | Description |
 |----------|-------|-------------|
 | `POLL_TIMEOUT` | `1000` ms | poll() timeout period |
-| `IDLE_TIMEOUT` | `30000` ms | Max idle time before kick |
+| `IDLE_TIMEOUT` | `30000` ms (30s) | Max idle time before client kick |
 | `READ_TIMEOUT` | `5000` ms | Max time for complex reads |
 | `KEEP_TIMEOUT` | `15000` ms | Keep-alive timeout |
-| `READ_BUFFER` | `4096` bytes | Buffer size for recv/read |
-
----
-
-## 🚀 Build & Run
-
-### Compilation
-- **Standard build:** `make`
-- **Debug mode:** `make debug` (Enables verbose connection logging)
-
-### Execution
-- **Default config:** `./webserver` (Uses `conf/Default.conf`)
-- **Custom config:** `./webserver path/to/config.conf`
+| `READ_BUFFER` | `4096` bytes | Buffer size for recv() and read() |
 
 ---
 
@@ -155,7 +169,7 @@ All sockets are set to non-blocking mode using `fcntl(fd, F_SETFL, O_NONBLOCK)`.
 ### Memory Management
 - **Request buffer**: Grows dynamically up to `client_max_body_size`
 - **Response buffer**: No buffer needed - reads directly from FD in 4KB chunks
-- **No copies**: Data flows from FD → 4KB buffer → socket without intermediate copies
+- **No full buffering**: Data flows from FD → 4KB buffer → socket without storing entire response in RAM
 
 ### Error Handling
 - **Socket errors**: `POLLERR`, `POLLHUP`, `POLLNVAL` → immediate `kickClient()`
@@ -166,8 +180,8 @@ All sockets are set to non-blocking mode using `fcntl(fd, F_SETFL, O_NONBLOCK)`.
 ### Keep-Alive Support
 After sending a complete response, the server:
 1. Closes the response FD
-2. Clears the request buffer
-3. Sets events back to `POLLIN`
+2. Clears the request buffer with `clearRequest()`
+3. Sets events back to `POLLIN` via `setClientEvents()`
 4. Waits for the next request on the same connection
 
 ---
@@ -185,7 +199,7 @@ public:
      * The handler must:
      * 1. Parse client.getRequestBuffer()
      * 2. Determine response (static file or CGI)
-     * 3. Create FD with complete HTTP response
+     * 3. Create FD with complete HTTP response (headers + body)
      * 4. Call client.setResponseFd(fd)
      */
     void handleRequest(Client& client);
@@ -193,7 +207,8 @@ public:
 ```
 
 ### The Response FD Contract
-The file descriptor set by `HttpHandler` must contain:
+The file descriptor set by `HttpHandler` via `client.setResponseFd(fd)` must contain the complete HTTP response:
+
 ```
 HTTP/1.1 200 OK\r\n
 Content-Type: text/html\r\n
@@ -202,9 +217,10 @@ Content-Length: 1234\r\n
 <html>...body content...</html>
 ```
 
-For static files: FD pointing to the file
-For CGI: FD from pipe() after script execution
-For errors: FD with error page content
+**FD sources:**
+- **Static files**: FD pointing directly to the file on disk
+- **CGI scripts**: FD from `pipe()` after script execution
+- **Error pages**: FD with error page content
 
 ---
 
@@ -237,60 +253,34 @@ fd: 6
 
 ---
 
-## 🧪 Testing
-
-### Manual Testing with curl
-```bash
-# Basic request
-curl -v http://localhost:8080/
-
-# Request with body
-curl -X POST -d "data=test" http://localhost:8080/upload
-
-# Test keep-alive
-curl -v --keepalive http://localhost:8080/
-
-# Large file download
-curl -o largefile.bin http://localhost:8080/large.bin
-```
-
-### Testing with telnet
-```bash
-telnet localhost 8080
-GET / HTTP/1.1
-Host: localhost
-Connection: close
-
-```
-
----
-
 ## ✅ Features Summary
 
 - [x] Non-blocking I/O with poll()
 - [x] Multiple server blocks (virtual hosts)
-- [x] Client timeout detection
-- [x] Keep-alive connections
+- [x] Client timeout detection and cleanup
+- [x] Keep-alive connections support
 - [x] Configurable max body size
 - [x] Debug logging mode
-- [x] Memory-efficient streaming (no full buffering)
-- [x] Clean resource management
-- [x] Error handling for all socket operations
+- [x] Memory-efficient streaming (no full response buffering)
+- [x] Clean resource management on disconnect
+- [x] Error handling for all socket operations (EAGAIN, EPIPE, etc.)
 
 ---
 
 ## 📁 File Structure
 ```
-src/
-├── server/
-│   ├── Server.cpp      # Main server logic & event loop
-│   ├── Server.hpp      # Server class declaration
-│   ├── Client.cpp      # Client state management
-│   └── Client.hpp      # Client class declaration
-│
-handler/                 # (External - by teammate)
-├── HttpHandler.cpp     # HTTP request processing
-└── HttpHandler.hpp     # Handler interface
+src/server/
+    Server.cpp      # Main server logic & event loop
+    Server.hpp      # Server class declaration
+    Client.cpp      # Client state management
+    Client.hpp      # Client class declaration
+
+inc/server/
+    Server.hpp      # Public header
+    Client.hpp      # Public header
+
+handler/            # (External - implemented by teammate)
+    HttpHandler.hpp # Handler interface
 ```
 
 ---
