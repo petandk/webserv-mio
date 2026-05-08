@@ -10,7 +10,7 @@ This module implements the **core network engine** of the web server. It is resp
 ### Core Components
 - **`Server`**: The main class that owns the event loop, socket management, and client lifecycle.
 - **`Client`**: Represents a single TCP connection with its state, request buffer, and response file descriptor.
-- **`HttpHandler`**: External component (implemented by your teammate) that processes HTTP requests and generates responses.
+- **`HttpHandler`**: External component (implemented by my teammate) that processes HTTP requests and generates responses.
 
 ### Data Flow Diagram
 ```
